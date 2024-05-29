@@ -1,0 +1,42 @@
+version: '3'
+
+services:
+  app:
+    depends_on:
+      postgres:
+        condition: service_healthy
+    image: docuseal/docuseal:latest
+    ports:
+      - 3000:3000
+    volumes:
+      - .:/data
+    environment:
+      - FORCE_SSL=${HOST}
+      - DATABASE_URL=postgresql://versa:V3rsa@postgres:5432/docuseal
+
+  postgres:
+    image: postgres:15
+    volumes:
+      - './pg_data:/var/lib/postgresql/data'
+    environment:
+      POSTGRES_USER: versa
+      POSTGRES_PASSWORD: V3rsa
+      POSTGRES_DB: docuseal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U versa"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  caddy:
+    image: caddy:latest
+    command: caddy reverse-proxy --from $HOST --to app:3000
+    ports:
+      - 80:80
+      - 443:443
+      - 443:443/udp
+    volumes:
+      - .:/data
+    environment:
+      - HOST=${HOST}
+

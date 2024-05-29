@@ -1,0 +1,62 @@
+version: "3.2"
+services:
+  faveo-apache:
+    image: ladybird/faveo-apache-v3
+    container_name: ${DOMAINNAME}-apache
+    networks:
+      faveo-network:
+         ipv4_address: 172.24.2.1
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./apache/000-default.conf:/etc/apache2/sites-available/000-default.conf
+      - ./${HOST_ROOT_DIR}:/var/www/html/
+      - ${CUR_DIR}/certbot/letsencrypt/etc/letsencrypt/live/${DOMAINNAME}/cert.pem:/var/imported/ssl/cert.pem
+      - ${CUR_DIR}/certbot/letsencrypt/etc/letsencrypt/live/${DOMAINNAME}/privkey.pem:/var/imported/ssl/privkey.pem
+      - ${CUR_DIR}/certbot/letsencrypt/etc/letsencrypt/live/${DOMAINNAME}/fullchain.pem:/var/imported/ssl/fullchain.pem
+    restart: always
+  faveo-mariadb:
+    image: mariadb:10.6
+    container_name: ${DOMAINNAME}-mariadb
+    volumes:
+      - db-volume:/var/lib/mysql
+    networks:
+      faveo-network:
+         ipv4_address: 172.24.2.2
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    restart: on-failure
+  faveo-redis:
+      image: redis
+      container_name: ${DOMAINNAME}-redis
+      restart: always
+      networks:
+        faveo-network:
+          ipv4_address: 172.24.2.3
+  faveo-supervisor:
+      image: ladybird/faveo-supervisor-v3
+      container_name: ${DOMAINNAME}-supervisor
+      volumes:
+        - ./${HOST_ROOT_DIR}/:/var/www/html/
+      ports:
+        - "9001:9001"
+      depends_on:
+        - faveo-redis
+        - faveo-mariadb
+      networks:
+        faveo-network:
+          ipv4_address: 172.24.2.4
+      restart: on-failure
+volumes:
+  db-volume:
+    external: 
+      name: ${DOMAINNAME}-faveoDB
+  
+networks:
+    faveo-network:
+      external:
+        name: ${DOMAINNAME}-faveo
