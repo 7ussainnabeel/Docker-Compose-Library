@@ -1,0 +1,15 @@
+version: '2'
+services:
+  drupal:
+    container_name: drupal
+    environment:
+      ADMIN_PASSWORD: ${admin_pass}
+      DB_HOST: mysql
+      DB_PASS: ${db_pass}
+    image: samos123/drupal
+    ports:
+    - 80:80
+  mysql:
+    extends:
+      file: ../database/mysql.yml
+      service: mysql

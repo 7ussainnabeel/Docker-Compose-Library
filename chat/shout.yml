@@ -1,0 +1,11 @@
+version: '2'
+services:
+  shout:
+    container_name: shout
+    environment:
+      PORT: 8080
+    image: arbourd/shout
+    ports:
+    - 8080:8080
+    volumes:
+    - ./shout_data:/shout

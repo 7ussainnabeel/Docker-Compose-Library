@@ -1,0 +1,10 @@
+version: '2'
+services:
+  postgres:
+    container_name: postgres
+    environment:
+      POSTGRES_PASSWORD: ${db_pass}
+      POSTGRES_USER: postgres
+    image: postgres
+    volumes:
+    - ./postgres_data:/var/lib/postgresql/data

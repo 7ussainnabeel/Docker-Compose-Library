@@ -1,0 +1,14 @@
+version: '2'
+services:
+  mattermost:
+    container_name: mattermost
+    environment:
+      MYSQL_DATABASE: mattermost_test
+      MYSQL_PASSWORD: mostest
+      MYSQL_ROOT_PASSWORD: ${db_pass}
+      MYSQL_USER: mmuser
+    image: mattermost/platform
+    ports:
+    - 80:80
+    volumes:
+    - ./mattermost_mysql:/var/lib/mysql

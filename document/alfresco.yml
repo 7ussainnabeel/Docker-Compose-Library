@@ -1,0 +1,21 @@
+version: '2'
+services:
+  alfresco:
+    container_name: alfresco
+    environment:
+      CONTENT_STORE: /mnt/content_store
+      DB_HOST: postgres
+      DB_NAME: alfresco
+      DB_PASSWORD: ${db_pass}
+      DB_USERNAME: postgres
+    image: rsippl/alfresco
+    ports:
+    - 8080:8080
+    volumes:
+    - ./SOME_DATA_FOLDER:/mnt/content_store
+  postgres:
+    environment:
+      POSTGRES_DB: alfresco
+    extends:
+      file: ../database/postgres.yml
+      service: postgres

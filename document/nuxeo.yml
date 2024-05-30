@@ -1,0 +1,36 @@
+version: '2'
+services:
+  elasticsearch:
+    container_name: elasticsearch
+    image: elasticsearch:1
+    volumes:
+    - ./ES_DATA:/usr/share/elasticsearch/data
+  nuxeo:
+    container_name: nuxeo
+    environment:
+      NUXEO_DB_HOST: postgres
+      NUXEO_DB_NAME: nuxeo
+      NUXEO_DB_PASSWORD: ${db_pass}
+      NUXEO_DB_TYPE: postgresql
+      NUXEO_DB_USER: nuxeo
+      NUXEO_ES_HOSTS: elasticsearch
+      NUXEO_REDIS_HOST: redis
+      NUXEO_URL: http://localhost:8080
+    image: nuxeo
+    ports:
+    - 8080:8080
+    restart: always
+    volumes:
+    - ./NUXEO_DATA:/var/lib/nuxeo/data
+  postgres:
+    environment:
+      POSTGRES_DB: nuxeo
+      POSTGRES_PASSWORD: ${db_pass}
+      POSTGRES_USER: nuxeo
+    extends:
+      file: ../database/postgres.yml
+      service: postgres
+  redis:
+    extends:
+      file: ../database/redis.yml
+      service: redis

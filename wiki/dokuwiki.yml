@@ -1,0 +1,9 @@
+version: '2'
+services:
+  dokuwiki:
+    container_name: dokuwiki
+    image: idef1x/dokuwiki
+    ports:
+    - 80:80
+    volumes:
+    - ./dokuwiki_storage:/data

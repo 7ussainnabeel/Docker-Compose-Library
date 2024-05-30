@@ -1,0 +1,17 @@
+version: '2'
+services:
+  joomla:
+    container_name: joomla
+    environment:
+      JOOMLA_DB_HOST: mysql:3306
+      JOOMLA_DB_PASSWORD: ${db_pass}
+      JOOMLA_DB_USER: root
+    image: joomla
+    ports:
+    - 80:80
+    volumes:
+    - ./joomla_html:/var/www/html
+  mysql:
+    extends:
+      file: ../database/mysql.yml
+      service: mysql
