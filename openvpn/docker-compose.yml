@@ -1,0 +1,17 @@
+version: '3'
+
+volumes:
+  openvpn-data:
+     driver: local-persist
+     driver_opts:
+       mountpoint: ${CONTAINERVOLUME}/etc/openvpn
+
+services:
+  openvpn:
+    image: kylemanna/openvpn
+    volumes:
+      - openvpn-data:/etc/openvpn
+    ports:
+      - 1194:1194/tcp
+    cap_add:
+      - NET_ADMIN

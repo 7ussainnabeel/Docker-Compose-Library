@@ -1,0 +1,31 @@
+http:
+  middlewares:
+    https-redirect:
+      redirectScheme:
+        scheme: https
+
+    default-headers:
+      headers:
+        customResponseHeaders:
+          server: "" # unset header
+          X-Powered-By: "" # unset header
+        customFrameOptionsValue: SAMEORIGIN
+        sslRedirect: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 15552000
+        accessControlAllowMethods:
+          - GET
+          - OPTIONS
+          - PUT
+          - POST
+        accessControlMaxAge: 100
+        addVaryHeader: true
+
+    secured:
+      chain:
+        middlewares:
+        - default-headers

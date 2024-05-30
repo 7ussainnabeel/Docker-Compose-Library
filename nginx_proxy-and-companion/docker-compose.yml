@@ -1,0 +1,35 @@
+version: '2'
+
+services:
+  nginx-proxy:
+    image: jwilder/nginx-proxy:latest
+    container_name: nginx-proxy
+    environment:
+      - ENABLE_IPV6=${ENABLE_IPV6}
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      - nginxproxy
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ${CONTAINERVOLUME}/etc/nginx/vhost.d:/etc/nginx/vhost.d:rw
+      - ${CONTAINERVOLUME}/etc/nginx/conf.d:/etc/nginx/conf.d:rw
+      - ${CONTAINERVOLUME}/etc/nginx/htpasswd:/etc/nginx/htpasswd:rw
+      - ${CONTAINERVOLUME}/etc/nginx/certs:/etc/nginx/certs:ro
+      - ./my_proxy.conf:/etc/nginx/conf.d/my_proxy.conf:ro
+      - ${CONTAINERVOLUME}/usr/share/nginx/html:/usr/share/nginx/html:rw
+
+  nginx-proxy-companion:
+    depends_on:
+      - nginx-proxy
+    image: jrcs/letsencrypt-nginx-proxy-companion:latest
+    container_name: nginx-proxy-companion
+    volumes_from:
+      - nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${CONTAINERVOLUME}/etc/nginx/certs:/etc/nginx/certs:rw
+
+networks:
+  nginxproxy:

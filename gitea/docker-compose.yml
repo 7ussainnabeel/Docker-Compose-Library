@@ -1,0 +1,82 @@
+version: '3'
+
+volumes:
+  gitea-data:
+     driver: local-persist
+     driver_opts:
+       mountpoint: ${CONTAINERVOLUME}/gitea
+  mysql-data:
+     driver: local-persist
+     driver_opts:
+       mountpoint: ${CONTAINERVOLUME}/mysql
+  redis-data:
+     driver: local-persist
+     driver_opts:
+       mountpoint: ${CONTAINERVOLUME}/redis
+
+services:
+
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - default
+
+  web:
+    image: gitea/gitea
+    restart: unless-stopped
+    volumes:
+      - gitea-data:/data
+    ports:
+      - "${SSH_PORT}:22"
+    expose:
+      - 3000
+    environment:
+      APP_NAME: ${APP_NAME}
+      RUN_MODE: ${RUN_MODE}
+      USER_UID: ${USER_UID}
+      USER_GID: ${USER_GID}
+      DISABLE_REGISTRATION: ${DISABLE_REGISTRATION}
+      REQUIRE_SIGNIN_VIEW: ${REQUIRE_SIGNIN_VIEW}
+      INSTALL_LOCK: ${INSTALL_LOCK}
+      SECRET_KEY: ${SECRET_KEY}
+      ROOT_URL: ${ROOT_URL}
+      SSH_PORT: ${SSH_PORT}
+      DISABLE_SSH: ${DISABLE_SSH}
+      HTTP_PORT: ${HTTP_PORT}
+      VIRTUAL_HOST: ${VIRTUAL_HOST}
+      VIRTUAL_PROTO: HTTP
+      VIRTUAL_PORT: ${HTTP_PORT}
+      LETSENCRYPT_HOST: ${LETSENCRYPT_HOST}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+      DB_TYPE: mysql
+      DB_HOST: database:3306
+      DB_NAME: ${MYSQL_DATABASE}
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWD: ${MYSQL_PASSWORD}
+    depends_on:
+      - database
+    networks:
+      - nginxproxy
+      - default
+
+  database:
+    image: percona:8.0
+    restart: unless-stopped
+    volumes:
+      - mysql-data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    command: --default-authentication-plugin=mysql_native_password --innodb_file_per_table
+    networks:
+      - default
+
+networks:
+  nginxproxy:
+    external:
+      name: ${NGINXPROXYNETWORK}

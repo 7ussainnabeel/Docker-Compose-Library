@@ -1,0 +1,96 @@
+version: '3'
+
+volumes:
+  nextcloud-redis-data:
+     driver: local-persist
+     driver_opts:
+       mountpoint: ${CONTAINERVOLUME}/var/lib/redis
+  nextcloud-postgres-data:
+     driver: local-persist
+     driver_opts:
+       mountpoint: ${CONTAINERVOLUME}/var/lib/postgresql
+  nextcloud-data:
+     driver: local-persist
+     driver_opts:
+       mountpoint: ${CONTAINERVOLUME}/var/www/html
+
+services:
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    volumes:
+      - nextcloud-redis-data:/data
+
+  database:
+    image: postgres:${POSTGRESQL_VERSION}
+    restart: unless-stopped
+    volumes:
+      - nextcloud-postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+      - POSTGRES_USER=${DATABASE_USER}
+      - POSTGRES_DB=${DATABASE_NAME}
+    command: ${DATABASE_COMMAND}
+
+  application:
+    image: nextcloud:stable-apache
+    restart: unless-stopped
+    environment:
+      - DB_NAME=${DATABASE_NAME}
+      - DB_USER=${DATABASE_USER}
+      - DB_PASSWORD=${DATABASE_PASSWORD}
+      - DB_TYPE=pgsql
+      - DB_HOST=database
+      - REDIS_HOST=redis
+    depends_on:
+      - database
+      - redis
+    volumes:
+      - nextcloud-data:/var/www/html
+      - ./conf.d/nextcloud.ini:/usr/local/etc/php/conf.d/nextcloud.ini
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.${COMPOSE_PROJECT_NAME}-caldav.redirectregex.permanent=true"
+      - "traefik.http.middlewares.${COMPOSE_PROJECT_NAME}-caldav.redirectregex.regex=^https://(.*)/.well-known/(card|cal)dav"
+      - "traefik.http.middlewares.${COMPOSE_PROJECT_NAME}-caldav.redirectregex.replacement=https://$${1}/remote.php/dav/"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}.entrypoints=http"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}.rule=Host(`${NEXTCLOUD_HOST}`)"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}.middlewares=https-redirect@file"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}-secure.entrypoints=https"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}-secure.rule=Host(`${NEXTCLOUD_HOST}`)"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}-secure.middlewares=secured@file,${COMPOSE_PROJECT_NAME}-caldav@docker"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}-secure.tls=true"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}-secure.tls.certresolver=http"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}-secure.service=${COMPOSE_PROJECT_NAME}"
+      - "traefik.http.services.${COMPOSE_PROJECT_NAME}.loadbalancer.server.port=80"
+      - "traefik.docker.network=${PROXY_NETWORK}"
+    networks:
+      - proxy
+      - default
+
+  cronjob:
+    image: nextcloud:stable-apache
+    restart: unless-stopped
+    user: "33:0"
+    environment:
+      - DB_NAME=${DATABASE_NAME}
+      - DB_USER=${DATABASE_USER}
+      - DB_PASSWORD=${DATABASE_PASSWORD}
+      - DB_TYPE=pgsql
+      - DB_HOST=database
+      - REDIS_HOST=redis
+    depends_on:
+      - application
+      - database
+      - redis
+    volumes:
+      - nextcloud-data:/var/www/html
+      - ./conf.d/nextcloud.ini:/usr/local/etc/php/conf.d/nextcloud.ini
+    entrypoint: sh
+    command: -c "echo 'cronjob is executed every ${CRON_INTERVAL}' && while sleep ${CRON_INTERVAL} ; do echo 'executing cron.php ...' && php cron.php && echo '... executed cron.php'; done"
+
+
+networks:
+  proxy:
+    external:
+      name: ${PROXY_NETWORK}

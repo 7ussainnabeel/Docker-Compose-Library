@@ -1,0 +1,89 @@
+version: '3.4'
+services:
+  database:
+    image: percona:5.7
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - database_volume:/var/lib/mysql
+    expose:
+      - 3306
+
+  redis:
+    image: redis:alpine
+    volumes:
+      - redis_volume:/data
+
+  passbolt:
+    image: passbolt/passbolt:latest
+    tty: true
+    depends_on:
+      - database
+    environment:
+      - DATASOURCES_DEFAULT_PORT=3306
+      - DATASOURCES_DEFAULT_HOST=database
+      - DATASOURCES_DEFAULT_DATABASE=${MYSQL_DATABASE}
+      - DATASOURCES_DEFAULT_USERNAME=${MYSQL_USER}
+      - DATASOURCES_DEFAULT_PASSWORD=${MYSQL_PASSWORD}
+      - PASSBOLT_KEY_NAME=${PASSBOLT_KEY_NAME}
+      - PASSBOLT_KEY_EMAIL=${PASSBOLT_KEY_EMAIL}
+      - VIRTUAL_HOST=${VIRTUAL_HOST}
+      - VIRTUAL_PROTO=http
+      - VIRTUAL_PORT=80
+      - PASSBOLT_SSL_FORCE=false
+      - LETSENCRYPT_HOST=${LETSENCRYPT_HOST}
+      - APP_FULL_BASE_URL=https://${LETSENCRYPT_HOST}
+      - EMAIL_TRANSPORT_DEFAULT_HOST=${EMAIL_TRANSPORT_DEFAULT_HOST}
+      - EMAIL_TRANSPORT_DEFAULT_PORT=${EMAIL_TRANSPORT_DEFAULT_PORT}
+      - EMAIL_TRANSPORT_DEFAULT_TLS=${EMAIL_TRANSPORT_DEFAULT_TLS}
+      - EMAIL_DEFAULT_FROM=${EMAIL_DEFAULT_FROM}
+      - EMAIL_TRANSPORT_DEFAULT_USERNAME=${EMAIL_TRANSPORT_DEFAULT_USERNAME}
+      - EMAIL_TRANSPORT_DEFAULT_PASSWORD=${EMAIL_TRANSPORT_DEFAULT_PASSWORD}
+      - CACHE_ENGINE=Redis
+      - CACHE_ENGINE_HOST=redis
+      - CACHE_ENGINE_DATABASE_CORE=1
+      - CACHE_ENGINE_DATABASE_MODEL=2
+    volumes:
+      - gpg_volume:/var/www/passbolt/config/gpg
+      - images_volume:/var/www/passbolt/webroot/img/public
+      - ./conf.d/redis-session.ini:/usr/local/etc/php/conf.d/redis-session.ini
+    tmpfs:
+      - /run
+    networks:
+      - nginxproxy
+      - default
+    entrypoint: |
+      bash -c "bash -s <<EOF
+      until mysqladmin ping -h \"$$DATASOURCES_DEFAULT_HOST\" -p\"$$DATASOURCES_DEFAULT_PASSWORD\" -u \"$$DATASOURCES_DEFAULT_USERNAME\"; do
+        echo \"SQL-Connection not ready yet...\"
+        sleep 10s
+      done
+      sleep 5s
+      exec /docker-entrypoint.sh
+      EOF"
+
+networks:
+  nginxproxy:
+    external:
+      name: ${NGINXPROXYNETWORK}
+
+volumes:
+  images_volume:
+     driver: local-persist
+     driver_opts:
+       mountpoint: ${CONTAINERVOLUME}/var/www/passbolt/webroot/img/public
+  gpg_volume:
+     driver: local-persist
+     driver_opts:
+       mountpoint: ${CONTAINERVOLUME}/var/www/passbolt/config/gpg
+  database_volume:
+     driver: local-persist
+     driver_opts:
+       mountpoint: ${CONTAINERVOLUME}/var/lib/mysql
+  redis_volume:
+     driver: local-persist
+     driver_opts:
+       mountpoint: ${CONTAINERVOLUME}/var/lib/redis
