@@ -25,4 +25,3 @@ sudo docker-compose up -d
 # Verify the status with docker ps
 echo "Verifying the status with docker ps..."
 sudo docker ps
-done
