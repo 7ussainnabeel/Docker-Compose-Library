@@ -1,23 +1,59 @@
-# docker-compose-library
+Docker-Compose Library
+A collection of ready-to-use and hopefully updated open-source applications with the help of Docker-Compose.
 
-A collection of ready-to-use and hopefully updated open-source applications with
-the help of Docker-Compose.
+Clone the Repository
+bash
+Copy code
+git clone https://github.com/7ussainnabeel/Docker-Compose-Library.git
+cd Docker-Compose-Library
+Usage
+Navigate to the Repository
 
-## Setup
+After cloning the repository, navigate to the Docker-Compose-Library directory:
 
-Copy [.env.template](.env.template) as `.env` and customize the variables.
+bash
+Copy code
+cd Docker-Compose-Library
+Choose a Folder
 
-Run an application with:
+Prompt the user to choose a folder number corresponding to the desired application:
 
-```
-docker-compose -f apps/<category>/<app-name>.yml up
-```
+bash
+Copy code
+echo "Please choose a folder number corresponding to the application you want to run:"
+ls -1
+read -p "Enter the folder number: " folder_number
+Change Directory
 
-or
+Change to the chosen folder:
 
-```
-docker stack deploy -c apps/<category>/<app-name>.yml <id>
-```
+bash
+Copy code
+cd $(ls -1 | sed -n "${folder_number}p")
+Run Docker-Compose
+
+Run docker-compose in detached mode:
+
+bash
+Copy code
+docker-compose up -d
+Verify Status
+
+Verify the status of the containers:
+
+bash
+Copy code
+docker-compose ps
+Contributing
+Feel free to contribute by adding more applications or updating the existing ones. Make sure to:
+
+License
+This project is licensed under the MIT License. See the LICENSE file for more details.
+
+Contact
+For any questions or suggestions, please open an issue or contact the repository owner.
+
+Enjoy using the Docker-Compose Library! 🚀
 
 ## Applications list
 
