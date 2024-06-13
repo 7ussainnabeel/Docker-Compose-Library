@@ -64,223 +64,91 @@ This project provides a diverse set of Docker-Compose files, each pre-configured
 
 ## Applications list
 
-# Available Applications
+### Administration
+* Aurora-Admin-Panel  
+* dashy  
+* rancherv1  
+* traefik  
 
-## Admin Panels
-**Aurora-Admin-Panel**  
-**appsmith**  
-**nocobase**  
-**nocodb**  
-**portainer**  
-**uptimekuma**  
-**netdata**  
-**grafana**  
-**dashboard**  
+### Communication
+* chat  
+* crewlink  
+* rocketchat  
+* teamspeak  
 
-## Messaging and Collaboration
-**bigbluebutton**  
-**chatwoot**  
-**humhub**  
-**mattermost**  
-**rocketchat**  
-**teamspeak**  
-**jitsi**  
-**discourse**  
-**crewlink**  
-**snapdrop**  
+### Collaboration
+* collaboration  
+* remotely  
+* nextcloud  
+* mykuma  
 
-## Content Management Systems (CMS)
-**alfresco**  
-**joomla**  
-**drupal**  
-**wordpress**  
-**ghost**  
-**xwiki**  
-**mediawiki**  
-**wiki**  
+### Content Management
+* blog  
+* cms  
+* docuseal  
+* rainloop  
+* wiki  
+* wordpress  
 
-## Databases
-**arangodb**  
-**clickhouse**  
-**couchdb**  
-**dgraph**  
-**influxdb**  
-**mariadb**  
-**mongodb**  
-**mysql**  
-**neo4j**  
-**postgresql**  
-**redis**  
-**sqlserver**  
-**prometheus**  
+### Customer Relationship Management (CRM)
+* crm  
+* dolibarr  
+* faveo  
+* freescout  
+* uvdesk  
+* zammad  
 
-## Development
-**ansible**  
-**dotnet**  
-**go**  
-**nodejs**  
-**python**  
-**ruby**  
-**gitlab**  
-**gitea**  
-**codeserver**  
-**jupyterhub**  
-**jenkins**  
-**maven**  
-**php**  
-**phpmyadmin**  
-**graphql**  
+### Development
+* development  
+* full_php_dev_stack  
+* gatling-grafana  
+* gitea  
+* gitlab  
+* jekyll-static-ssh-deploy  
+* scripts  
 
-## ERP and CRM
-**akaunting**  
-**dolibarr**  
-**erp**  
-**erpnext**  
-**espocrm**  
-**odoo**  
-**saleor**  
-**sylius**  
+### E-commerce
+* ecommerce  
+* invoice-ninja  
+* peppermint  
 
-## File Management
-**kodbox**  
-**owncloud**  
-**nextcloud**  
-**seafile**  
-**storage**  
+### Enterprise Resource Planning (ERP)
+* erp  
 
-## Security and Authentication
-**bitwarden**  
-**vault**  
-**wireguard**  
-**openvpn**  
-**passbolt**  
-**teleport**  
+### Multimedia
+* multimedia  
+* sinusbot  
+* streaming  
 
-## Machine Learning and AI
-**autogptnextweb**  
-**flowise**  
-**tensorflow**  
+### Networking
+* openvpn  
+* nginx_proxy-and-companion  
 
-## Monitoring and Logging
-**graylog**  
-**logstash**  
-**zabbix**  
+### Project Management
+* business-intelligence  
+* project-management  
+* opeprojects  
 
-## Multimedia
-**jellyfin**  
-**navidrome**  
+### Storage
+* database  
+* document  
+* storage  
 
-## Networking
-**coredns**  
-**haproxy**  
-**nginx**  
-**nginxproxymanager**  
-**traefik**  
+### Ticketing Systems
+* trouble-ticketing  
 
-## E-commerce
-**magento**  
-**prestashop**  
-**nopcommerce**  
+### Security
+* passbolt  
 
-## IoT and Home Automation
-**homeassistant**  
-**thingsboard**  
+### Web Analytics
+* matomo  
 
-## Utilities
-**aria2**  
-**caddy**  
-**cadvisor**  
-**clamav**  
-**guacamole**  
-**excalidraw**  
-**screego**  
-**tinyproxy**  
-**varnish**  
-**varnish-cache**  
-**apache**  
-**kasmweb**  
+### Web Server
+* varnish-cache  
 
-## Miscellaneous
-**blog**  
-**document**  
-**docusaurus**  
-**docuseal**  
-**jekyll-static-ssh-deploy**  
-**project-management**  
-**business-intelligence**  
-**countly**  
-**dashy**  
-**datahub**  
-**falcon**  
-**faveo**  
-**full_php_dev_stack**  
-**gatling-grafana**  
-**geminiprochat**  
-**geoserver**  
-**metabase**  
-**mingdao**  
-**minio**  
-**mongocompass**  
-**mongoexpress**  
-**moodle**  
-**mosquitto**  
-**mqttx**  
-**multimedia**  
-**mykuma**  
-**navidrome**  
-**nextterminal**  
-**nginx_proxy-and-companion**  
-**openjdk**  
-**opensearch**  
-**opeprojects**  
-**oracle**  
-**palworld**  
-**penpot**  
-**peppermint**  
-**pgadmin**  
-**pimcore**  
-**plausible**  
-**pocketbase**  
-**postgrest**  
-**pydio**  
-**rainbond**  
-**rainloop**  
-**rancher**  
-**rancherv1**  
-**redash**  
-**redisinsight**  
-**redmine**  
-**redpandaconsole**  
-**remotely**  
-**rethinkdb**  
-**rundeck**  
-**sakai**  
-**scratch**  
-**scripts**  
-**semaphore**  
-**sinusbot**  
-**squid**  
-**srs**  
-**sscms**  
-**strapi**  
-**streaming**  
-**supabase**  
-**superset**  
-**teamcity**  
-**theia**  
-**tomee**  
-**tooljet**  
-**trouble-ticketing**  
-**typesense**  
-**typo3**  
-**umami**  
-**umbraco**  
-**uvdesk**  
-**v2ray**  
-**zentao**  
-**zammad**  
-**zookeeper**
-
+### Games
+* ark-server  
+* crewlink
 ## Support
 
 For support, [email](hnabeel3@gmail.com).
