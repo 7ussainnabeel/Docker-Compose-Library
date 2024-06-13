@@ -1,4 +1,3 @@
-
 <h1 align=“center">This Project is a Docker Compose Library</h1>
 
 <p align="center">
@@ -9,80 +8,154 @@
 </p>
 
 ---
-
-#### Contents
-
-- **[About](#about)**
-  - [Features](#Applicationslist)
-  - [Configuration Options](#configuring)
-  - [Support](#supporting)
-- **[License](#license)**
-
----
-
 ## About
+
 The Docker-Compose Library is a curated collection of ready-to-use and continuously updated open-source applications. By leveraging Docker-Compose, this library simplifies the deployment and management of various applications, making it easier for developers and system administrators to set up and run complex software environments.
+## Description
+## Installation
 
-### Applications list
+- Just, Clone this repository -
+  ```
+  git clone https://github.com/7ussainnabeel/Docker-Compose-Library.git
+  ```
 
-| Name                                        | Category              |
-| ------------------------------------------- | --------------------- |
-| [Ghost](blog/ghost.yml)                     | blog                  |
-| [Bonita](business-intelligence/bonita.yml)  | business-intelligence |
-| [Shout](chat/shout.yml)                     | chat                  |
-| [drupal](cms/drupal.yml)                    | cms                   |
-| [joomla](cms/joomla.yml)                    | cms                   |
-| [wordpress](cms/wordpress.yml)              | cms                   |
-| [eXo](collaboration/eXo.yml)                | collaboration         |
-| [gitlab](collaboration/gitlab.yml)          | collaboration         |
-| [hastebin](collaboration/hastebin.yml)      | collaboration         |
-| [hublin](collaboration/hublin.yml)          | collaboration         |
-| [mattermost](collaboration/mattermost.yml)  | collaboration         |
-| [openfire](collaboration/openfire.yml)      | collaboration         |
-| [rocket.chat](collaboration/rocketchat.yml) | collaboration         |
-| [suitecrm](crm/suitecrm.yml)                | crm                   |
-| [mongo](database/suitecrm.yml)              | database              |
-| [mysql](database/mysql.yml)                 | database              |
-| [postgres](database/postgres.yml)           | database              |
-| [redis](database/redis.yml)                 | database              |
-| [kong](development/kong.yml)                | development           |
-| [sonarqube](development/sonarqube.yml)      | development           |
-| [alfresco](document/alfresco.yml)           | document              |
-| [ckan](document/ckan.yml)                   | document              |
-| [logicaldoc](document/logicaldoc.yml)       | document              |
-| [nuxeo](document/nuxeo.yml)                 | document              |
-| [xibo](document/xibo.yml)                   | document              |
-| [prestashop](document/prestashop.yml)       | ecommerce             |
-| [odoo](erp/odoo.yml)                        | erp                   |
-| [tuleap](project-management/tuleap.yml)     | project-management    |
-| [owncloud](storage/owncloud.yml)            | storage               |
-| [mistserver](streaming/mistserver.yml)      | streaming             |
-| [red5](streaming/red5.yml)                  | streaming             |
-| [osticket](trouble-ticketing/osticket.yml)  | trouble-ticketing     |
-| [redmine](trouble-ticketing/redmine.yml)    | trouble-ticketing     |
-| [dokuwiki](wiki/dokuwiki.yml)               | wiki                  |
-| [mediawiki](wiki/mediawiki.yml)             | wiki                  |
+- Now go to cloned directory -
+  ```
+  $ cd Docker-Compose-Library
+  ```
+- Run the bash script
+    ```
+  $ chmod +x startup.sh
+  $ ./startup.sh
+    ```
+## Deployment
+
+- Choose a Folder
+
+    Choose the folder number corresponding to the desired application
+
+- Bash script will do the magic
+
+    Run the script and wait (5-10 min) container will be ready to double check run the following
+    ```
+    sudo docker ps
+
+    ```
+- **NOTE.** Container may take more time depending on your machine processing speed.
+
+## Features
+
+* **Wide Range of Applications**: The library includes a diverse set of applications, catering to different needs and use cases. 
+* **Easy to Use**: Each application is containerized and configured with Docker-Compose, enabling quick and hassle-free deployments. 
+* **Continuous Updates**: The repository is regularly updated to include the latest versions and best practices for each application. 
+* **Community-Driven**: Contributions from the community are encouraged and welcomed, ensuring the library grows and evolves with user needs.
 
 
-###### Description
-An IP address (Internet Protocol address) is a numerical label assigned to each device connected to a network / the internet. The IP associated with a given domain can be found by querying the Domain Name System (DNS) for the domain's A (address) record.
+## Applications list
 
+### Administration
+* Aurora-Admin-Panel  
+* dashy  
+* rancherv1  
+* traefik  
 
+### Communication
+* chat  
+* crewlink  
+* rocketchat  
+* teamspeak  
 
-### Supporting
+### Collaboration
+* collaboration  
+* remotely  
+* nextcloud  
+* mykuma  
+
+### Content Management
+* blog  
+* cms  
+* docuseal  
+* rainloop  
+* wiki  
+* wordpress  
+
+### Customer Relationship Management (CRM)
+* crm  
+* dolibarr  
+* faveo  
+* freescout  
+* uvdesk  
+* zammad  
+
+### Development
+* development  
+* full_php_dev_stack  
+* gatling-grafana  
+* gitea  
+* gitlab  
+* jekyll-static-ssh-deploy  
+* scripts  
+
+### E-commerce
+* ecommerce  
+* invoice-ninja  
+* peppermint  
+
+### Enterprise Resource Planning (ERP)
+* erp  
+
+### Multimedia
+* multimedia  
+* sinusbot  
+* streaming  
+
+### Networking
+* openvpn  
+* nginx_proxy-and-companion  
+
+### Project Management
+* business-intelligence  
+* project-management  
+* opeprojects  
+
+### Storage
+* database  
+* document  
+* storage  
+
+### Ticketing Systems
+* trouble-ticketing  
+
+### Security
+* passbolt  
+
+### Web Analytics
+* matomo  
+
+### Web Server
+* varnish-cache  
+
+### Games
+* ark-server  
+* crewlink
+## Support
+
+For support, [email](hnabeel3@gmail.com).
 
 The repo will remain 100% free and open source..
 It's thanks to the support of the community that this project is able to be freely available for everyone :)
 
+## Contributing
+
+Contributions are always welcome!
+
+Feel free to contribute by adding more applications or updating the existing ones. Make sure to:
+
+* Fork the repository
+* Create a new branch for your feature or fix
+* Open a pull request with a detailed description of the changes
 
 ## License
-
-> _**[Docker-Compose-Library](https://github.com/7ussainnabeel/Docker-Compose-Library.git)** is licensed under [MIT](/blob/HEAD/LICENSE) © [Hussain Dahi](https://dhahi.info) 2024._<br>
-> <sup align="right">For information, see <a href="https://tldrlegal.com/license/mit-license">TLDR Legal > MIT</a></sup>
-
-<details>
-<summary>Expand License</summary>
-
 ```
 The MIT License (MIT)
 Copyright (c) Hussain Dahi <hnabeel3@gmail.com> 
@@ -95,15 +168,12 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 ```
 
-</details>
+> **[Docker-Compose-Library](https://github.com/7ussainnabeel/Docker-Compose-Library.git)** is Licensed under [Hussain Dahi](https://github.com/7ussainnabeel/Docker-Compose-Library?tab=MIT-1-ov-file).
 
-<!-- License + Copyright -->
-<p  align="center">
-  <i>© <a href=“https://Dhahi.info”>Hussain Dahi</a> 2024</i><br>
-  <i>Licensed under <a href="https://github.com/7ussainnabeel/Docker-Compose-Library?tab=MIT-1-ov-file">MIT</a></i><br>
-  <a href="https://github.com/7ussainnabeel"></a><br>
-  <sup>Thanks for visiting :)</sup>
-</p>
+
+## Contact
+For any questions or suggestions, please open an issue or contact the repository owner [Hussain Dahi](hnabeel3@gmail.com).
+## 
 
 <!-- Homelabs are fun -->
 <!-- 
