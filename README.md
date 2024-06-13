@@ -12,6 +12,18 @@
 
 The Docker-Compose Library is a curated collection of ready-to-use and continuously updated open-source applications. By leveraging Docker-Compose, this library simplifies the deployment and management of various applications, making it easier for developers and system administrators to set up and run complex software environments.
 ## Description
+This repository contains a collection of Docker-Compose files for various open-source applications, including:
+- **Productivity Tools**: Nextcloud, OnlyOffice, Collabora Online, etc.
+- **Development Tools**: GitLab, Jenkins, SonarQube, etc.
+- **Security Tools**: OWASP ZAP, Burp Suite, etc.
+- **Monitoring and Logging Tools**: Prometheus, Grafana, ELK Stack, etc.
+- **Database Management Systems**: MySQL, PostgreSQL, MongoDB, etc.
+- **Web Servers and Proxies**: Nginx, Apache, Traefik, etc.
+- **Virtualization and Orchestration Tools**: Docker Swarm, Kubernetes, etc.
+- **Other Tools**: FileBrowser, Portainer, etc.
+
+This project provides a diverse set of Docker-Compose files, each pre-configured for a specific application. It caters to a wide range of needs, from admin panels and CMS to databases and machine learning tools. The library is designed to be user-friendly, making it accessible even to those who are new to Docker.
+
 ## Installation
 
 - Just, Clone this repository -
@@ -39,7 +51,6 @@ The Docker-Compose Library is a curated collection of ready-to-use and continuou
     Run the script and wait (5-10 min) container will be ready to double check run the following
     ```
     sudo docker ps
-
     ```
 - **NOTE.** Container may take more time depending on your machine processing speed.
 
