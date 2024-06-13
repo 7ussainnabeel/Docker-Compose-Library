@@ -166,6 +166,15 @@ Feel free to contribute by adding more applications or updating the existing one
 * Create a new branch for your feature or fix
 * Open a pull request with a detailed description of the changes
 
+#### There is no infrastructure limitation
+
+You can run the docker container on any infrastructure as long as you have **docker.io** and **docker-compose** installed
+
+- **OS**: Red Hat, CentOS, Debian, Ubuntu or other's Linux OS ...
+- **Public Cloud**: More than 20+ major Cloud such as AWS, Azure, Google Cloud, Alibaba Cloud, HUAWEIClOUD, Oracle Cloud ...
+- **Private Cloud**: KVM, VMware, VirtualBox, OpenStack ...
+- **ARCH**: Linux x86-64, ARM 32/64, x86/i686 ...
+
 ## License
 
 The MIT License (MIT)
