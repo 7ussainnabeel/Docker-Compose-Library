@@ -1,0 +1,48 @@
+# docs: https://grafana.com/docs/grafana/latest/installation/docker/
+# dockerfile: https://github.com/grafana/grafana/blob/main/Dockerfile
+# dockerhub: https://hub.docker.com/r/grafana/grafana
+# mysql db for grafana meta storage
+
+version: '3.8'
+
+services:
+
+  grafana:
+    image: grafana/grafana-oss:${W9_VERSION}
+    container_name: ${W9_ID}  
+    restart: unless-stopped
+    ports:
+      - ${W9_HTTP_PORT_SET}:3000
+    volumes:
+      - data:/var/lib/grafana
+      - config:/etc/grafana
+      - logs:/var/log/grafana
+      - plugins:/var/lib/grafana/plugins
+    env_file: .env
+
+  loki:
+    image: grafana/loki
+    container_name: ${W9_ID}-loki
+    restart: unless-stopped
+    volumes:
+      - loki_data:/loki
+
+  promtail:
+    image: grafana/promtail
+    container_name: ${W9_ID}-promtail
+    restart: unless-stopped
+    volumes:
+      -  promtail_log:/var/log
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  data:
+  config:
+  logs:
+  plugins:
+  loki_data:
+  promtail_log:

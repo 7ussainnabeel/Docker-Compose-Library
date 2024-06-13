@@ -1,0 +1,42 @@
+# image: https://hub.docker.com/r/bitwarden/self-host
+# compose: https://github.com/bitwarden/self-host/blob/main/docker-unified/docker-compose.yml
+# environment: https://github.com/bitwarden/self-host/blob/main/docker-unified/settings.env
+# docs: https://bitwarden.com/help/install-on-premise-linux/
+
+version: '3.8'
+
+services:
+  bitwarden:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID
+    restart: unless-stopped
+    ports:
+      - $W9_HTTP_PORT_SET:8080
+    env_file: .env
+    volumes:
+      - bitwarden:/etc/bitwarden
+      - logs:/var/log/bitwarden
+    depends_on:
+      - mariadb
+
+  mariadb:
+    environment:
+      MARIADB_USER: $W9_ID
+      MARIADB_PASSWORD: $W9_POWER_PASSWORD
+      MARIADB_ROOT_PASSWORD: $W9_POWER_PASSWORD
+      MARIADB_DATABASE: $W9_ID
+    image: mariadb:$W9_MARIADB_VERSION
+    container_name: $W9_ID-mariadb
+    restart: unless-stopped
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+volumes:
+  mariadb_data:
+  bitwarden:
+  logs:
+    
+networks:
+  default:
+    name: $W9_NETWORK
+    external: true

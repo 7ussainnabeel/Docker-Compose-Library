@@ -1,0 +1,23 @@
+# image,docs: https://hub.docker.com/r/linuxserver/duplicati
+
+version: '3.8'
+
+services:
+  duplicati:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID
+    restart: unless-stopped
+    ports:
+      - $W9_HTTP_PORT_SET:8200
+    env_file: .env
+    volumes:
+      - config:/config
+      - $SOURCE_PATH:/source  # mount to host diretory
+      - $BACKUP_PATH:/backups
+     
+volumes:
+  config:
+networks:
+  default:
+    name: $W9_NETWORK
+    external: true

@@ -1,0 +1,103 @@
+# image: https://hub.docker.com/r/apache/superset
+# docs: https://github.com/apache/superset
+# docs: https://superset.apache.org/docs/installation/installing-superset-using-docker-compose/
+# compose: https://github.com/apache/superset/blob/master/docker-compose-non-dev.yml 
+
+x-superset-image: &superset-image $W9_REPO:$W9_VERSION
+x-superset-depends-on: &superset-depends-on
+  - db
+  - redis
+x-superset-volumes:
+  &superset-volumes # /app/pythonpath_docker will be appended to the PYTHONPATH in the final container
+  - ./src/docker:/app/docker
+  - superset_home:/app/superset_home
+
+version: "3.8"
+services:
+  redis:
+    image: redis:7
+    container_name: $W9_ID-cache
+    restart: unless-stopped
+    volumes:
+      - redis:/data
+
+  db:
+    image: postgres:15
+    container_name: $W9_ID-postgresql
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=$DATABASE_DB
+      - POSTGRES_USER=$DATABASE_USER
+      - POSTGRES_PASSWORD=$DATABASE_PASSWORD
+      - EXAMPLES_DB=examples
+      - EXAMPLES_HOST=$W9_ID-postgresql
+      - EXAMPLES_USER=examples
+      - EXAMPLES_PASSWORD=$W9_POWER_PASSWORD
+      - EXAMPLES_PORT=5432   
+    volumes:
+      - postgresql:/var/lib/postgresql/data
+      - ./src/docker/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+
+  superset:
+    env_file: .env
+    image: *superset-image
+    container_name: $W9_ID
+    restart: unless-stopped
+    command: ["/app/docker/docker-bootstrap.sh", "app-gunicorn"]
+    ports:
+      - '$W9_HTTP_PORT_SET:8088'
+    user: root
+    depends_on: *superset-depends-on
+    volumes: *superset-volumes
+
+  superset-init:
+    env_file: .env
+    image: *superset-image
+    container_name: $W9_ID-init
+    command: ["/app/docker/docker-init.sh"]
+    depends_on: *superset-depends-on
+    user: "root"
+    volumes: *superset-volumes
+    healthcheck:
+      disable: true
+
+  superset-worker:
+    env_file: .env
+    image: *superset-image
+    container_name: $W9_ID-worker
+    command: ["/app/docker/docker-bootstrap.sh", "worker"]
+    restart: unless-stopped
+    depends_on: *superset-depends-on
+    user: "root"
+    volumes: *superset-volumes
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A superset.tasks.celery_app:app inspect ping -d celery@$$HOSTNAME",
+        ]
+
+  superset-worker-beat:
+    env_file: .env
+    image: *superset-image
+    container_name: $W9_ID-worker-beat
+    command: ["/app/docker/docker-bootstrap.sh", "beat"]
+    restart: unless-stopped
+    depends_on: *superset-depends-on
+    user: "root"
+    volumes: *superset-volumes
+    healthcheck:
+      disable: true
+
+volumes:
+  superset_home:
+    external: false
+  postgresql:
+    external: false
+  redis:
+    external: false
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true

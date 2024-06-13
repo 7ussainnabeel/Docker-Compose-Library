@@ -1,0 +1,37 @@
+# docs: https://learn.netdata.cloud/docs/agent/packaging/docker
+# image: https://hub.docker.com/r/netdata/netdata
+
+version: '3.8'
+
+services:
+  netdata:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID
+    hostname: $W9_URL
+    ports:
+      - '$W9_HTTP_PORT_SET:19999'
+    restart: unless-stopped
+    env_file: .env
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - netdataconfig:/etc/netdata
+      - netdatalib:/var/lib/netdata
+      - netdatacache:/var/cache/netdata
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc/os-release:/host/etc/os-release:ro
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  netdataconfig:
+  netdatalib:
+  netdatacache:

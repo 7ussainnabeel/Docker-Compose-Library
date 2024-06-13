@@ -1,0 +1,87 @@
+# docs: https://www.chatwoot.com/docs/self-hosted/deployment/docker
+# compose: https://github.com/chatwoot/chatwoot/blob/develop/docker-compose.production.yaml
+# chatwoot base container is not need, it only for build
+
+version: '3.8'
+
+services:
+
+  rails:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - chatwoot:/app/storage
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - $W9_HTTP_PORT_SET:3000
+    environment:
+      - NODE_ENV=production
+      - RAILS_ENV=production
+      - INSTALLATION_ENV=docker
+    entrypoint: docker/entrypoints/rails.sh
+    command: ['bundle', 'exec', 'rails', 's', '-p', '3000', '-b', '0.0.0.0']
+
+  migrate:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID-migrate
+    env_file: .env
+    volumes:
+      - chatwoot:/app/storage
+    depends_on:
+      - rails
+    environment:
+      - NODE_ENV=production
+      - RAILS_ENV=production
+      - INSTALLATION_ENV=docker
+    entrypoint: docker/entrypoints/rails.sh
+    command: bundle exec rails db:chatwoot_prepare
+
+  sidekiq:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID-sidekiq
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - chatwoot:/app/storage
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - NODE_ENV=production
+      - RAILS_ENV=production
+      - INSTALLATION_ENV=docker
+    command: ['bundle', 'exec', 'sidekiq', '-C', 'config/sidekiq.yml']
+
+  postgres:
+    image: postgres:$W9_DB_VERSION
+    container_name: $W9_ID-postgresql
+    restart: unless-stopped
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=chatwoot
+      - POSTGRES_USER=postgres
+      # Please provide your own password.
+      - POSTGRES_PASSWORD=$W9_POWER_PASSWORD
+
+  redis:
+    image: redis:alpine
+    container_name: $W9_ID-redis
+    restart: unless-stopped
+    command: ["sh", "-c", "redis-server"]
+    volumes:
+      - /data/redis:/data
+
+volumes:
+  postgres:
+  storage:
+  chatwoot:
+    
+networks:
+  default:
+    name: $W9_NETWORK
+    external: true

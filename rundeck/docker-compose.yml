@@ -1,0 +1,24 @@
+# docs: https://docs.rundeck.com/docs/administration/install/docker.html
+# image: https://hub.docker.com/r/rundeck/rundeck
+
+version: '3.8'
+
+services:
+
+  rundeck:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID
+    restart: unless-stopped
+    ports:
+      - $W9_HTTP_PORT_SET:4440
+    env_file: .env
+    volumes:
+      - rundeck:/home/rundeck/server/data
+
+volumes:
+  rundeck:
+    
+networks:
+  default:
+    name: $W9_NETWORK
+    external: true

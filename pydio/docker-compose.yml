@@ -1,0 +1,42 @@
+# image and compose: https://hub.docker.com/r/pydio/cells
+# more compose: https://github.com/pydio/cells/tree/main/tools/docker
+
+version: '3.8'
+
+services:
+  pydio:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID
+    ports:
+      - $W9_HTTP_PORT_SET:8080
+      #- 9002:33060
+    volumes:
+      - pydio:/var/cells
+      - ./src/install-conf.yml:/pydio/config/install.yml:ro
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:$W9_DB_VERSION
+    container_name: $W9_ID-mysql
+    restart: unless-stopped
+    command: [mysqld, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci]
+    volumes:
+      - mysql:/var/lib/mysql
+    environment:
+      MYSQL_DATABASE: $W9_ID
+      MYSQL_USER: $W9_ID
+      MYSQL_PASSWORD: $W9_POWER_PASSWORD
+      MYSQL_ROOT_PASSWORD: $W9_POWER_PASSWORD
+
+networks:
+  default:
+    name: $W9_NETWORK
+    external: true
+
+volumes:
+  pydio:
+    driver: local
+  mysql:
+    driver: local

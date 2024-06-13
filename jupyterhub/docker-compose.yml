@@ -1,0 +1,36 @@
+# image: https://hub.docker.com/_/jupyterhub
+# docs: https://jupyterhub.readthedocs.io/en/latest/tutorial/quickstart-docker.html
+#       https://jupyterhub.readthedocs.io/en/stable/tutorial/getting-started/config-basics.html
+
+version: '3.8'
+
+services:
+  jupyterhub:
+    image: $W9_REPO:$W9_VERSION
+    container_name: ${W9_ID}
+    env_file: .env
+    ports:
+      - ${W9_HTTP_PORT_SET}:8000
+    volumes:
+      - jupyterhub:/var/www/html
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    command:
+      - sh
+      - -c 
+      - |
+          [ ! -d /usr/local/lib/python3.10/dist-packages/jupyterlab ] && pip install jupyterlab
+          [ -z "`grep -w ^$$USERNAME /etc/passwd`" ] && useradd $$USERNAME -m && echo $$USERNAME:$$PASSWORD | chpasswd
+          jupyterhub
+    environment:
+      USERNAME: $W9_LOGIN_USER
+      PASSWORD: $W9_POWER_PASSWORD
+
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  jupyterhub:

@@ -1,0 +1,15 @@
+# docs: https://sakaiproject.atlassian.net/wiki/spaces/DOC/pages/17310646929/Sakai+21+Install+Guide+Binary
+
+
+version: '3.8'
+
+services:
+  sakai:
+
+networks:
+  default:
+      name: ${W9_NAME}
+
+volumes:
+  mysql:
+  suitecrm:

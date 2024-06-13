@@ -1,0 +1,53 @@
+# refer to: https://github.com/bitnami/bitnami-docker-moodle
+# image: https://hub.docker.com/r/bitnami/moodle
+
+version: "3.8"
+
+services:
+  moodle:
+    image: ${W9_REPO}:${W9_VERSION}
+    container_name: ${W9_ID}
+    restart: unless-stopped
+    environment:
+      - ALLOW_EMPTY_PASSWORD=no
+      - MOODLE_DATABASE_HOST=${W9_ID}-mariadb
+      - MOODLE_DATABASE_PORT_NUMBER=3306
+      - MOODLE_DATABASE_USER=${W9_ID}
+      - MOODLE_DATABASE_PASSWORD=${W9_POWER_PASSWORD}
+      - MOODLE_DATABASE_NAME=${W9_ID}
+      - MOODLE_USERNAME=${W9_LOGIN_USER}
+      - MOODLE_PASSWORD=${W9_LOGIN_PASSWORD}
+    ports:
+      - "${W9_HTTP_PORT_SET}:${W9_HTTP_PORT}"
+    env_file:
+      - .env
+    volumes:
+      - "moodle_data:/bitnami/moodle"
+      - "moodledata_data:/bitnami/moodledata"
+    depends_on:
+      - mariadb
+
+  mariadb:
+    image: docker.io/bitnami/mariadb:$W9_MARIADB_VERSION
+    container_name: ${W9_ID}-mariadb
+    restart: unless-stopped
+    environment:
+      - ALLOW_EMPTY_PASSWORD=no
+      - MARIADB_USER=${W9_ID}
+      - MARIADB_PASSWORD=${W9_POWER_PASSWORD}
+      - MARIADB_ROOT_PASSWORD=${W9_POWER_PASSWORD}
+      - MARIADB_DATABASE=${W9_ID}
+      - MARIADB_CHARACTER_SET=utf8mb4
+      - MARIADB_COLLATE=utf8mb4_unicode_ci
+    volumes:
+      - "mariadb_data:/bitnami/mariadb"
+
+volumes:
+  mariadb_data:
+  moodle_data:
+  moodledata_data:
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true

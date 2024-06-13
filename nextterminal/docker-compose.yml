@@ -1,0 +1,31 @@
+# docs: https://next-terminal.typesafe.cn/docs/install/docker-install.html
+
+ 
+version: '3.8'
+services:        
+  next-terminal:
+    image: ${W9_REPO}:$W9_VERSION
+    container_name: ${W9_ID}
+    ports:
+      - "${W9_HTTP_PORT_SET}:${W9_HTTP_PORT}"
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - next_terminal:/usr/local/next-terminal/data
+    restart: unless-stopped
+    env_file: .env
+
+  guacd:
+    image: dushixiang/guacd:latest
+    container_name: ${W9_ID}-guacd
+    volumes:
+      - guacd:/usr/local/next-terminal/data
+    restart: unless-stopped
+      
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  guacd:
+  next_terminal:

@@ -1,0 +1,146 @@
+# docs: https://docs.alfresco.com/content-services/community/install/containers/docker-compose/
+# source: https://github.com/Alfresco/acs-deployment/blob/master/docker-compose/community-docker-compose.yml
+# Modified by Websoft9: replace using variable, volume define and bind
+
+version: "3.8"
+services:
+  alfresco:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID-alfresco  # add by Websoft9
+    mem_limit: 1900m
+    environment:
+      JAVA_TOOL_OPTIONS: >-
+        -Dencryption.keystore.type=JCEKS
+        -Dencryption.cipherAlgorithm=DESede/CBC/PKCS5Padding
+        -Dencryption.keyAlgorithm=DESede
+        -Dencryption.keystore.location=/usr/local/tomcat/shared/classes/alfresco/extension/keystore/keystore
+        -Dmetadata-keystore.password=mp6yc0UD9e
+        -Dmetadata-keystore.aliases=metadata
+        -Dmetadata-keystore.metadata.password=oKIWzVdEdA
+        -Dmetadata-keystore.metadata.algorithm=DESede
+      JAVA_OPTS: >-
+        -Ddb.driver=org.postgresql.Driver
+        -Ddb.username=alfresco 
+        -Ddb.password=$W9_POWER_PASSWORD
+        -Ddb.url=jdbc:postgresql://$W9_ID-postgresql:5432/alfresco
+        -Dsolr.host=$W9_ID-solr6
+        -Dsolr.port=8983
+        -Dsolr.http.connection.timeout=1000
+        -Dsolr.secureComms=secret
+        -Dsolr.sharedSecret=secret
+        -Dsolr.base.url=/solr
+        -Dindex.subsystem.name=solr6
+        -Dshare.host=$W9_URL
+        -Dshare.port=8080
+        -Dalfresco.host=$W9_URL
+        -Dalfresco.port=8080
+        -Dcsrf.filter.enabled=false
+        -Daos.baseUrlOverwrite=http://$W9_URL:8080/alfresco/aos
+        -Dmessaging.broker.url="failover:(nio://$W9_ID-activemq:61616)?timeout=3000&jms.useCompression=true"
+        -Ddeployment.method=DOCKER_COMPOSE
+        -DlocalTransform.core-aio.url=http://$W9_ID-transform:8090/
+        -XX:MinRAMPercentage=50
+        -XX:MaxRAMPercentage=80
+
+  transform-core-aio:
+    image: alfresco/alfresco-transform-core-aio:5.0.1
+    container_name: $W9_ID-transform # add by Websoft9
+    mem_limit: 1536m
+    environment:
+      JAVA_OPTS: >-
+        -XX:MinRAMPercentage=50
+        -XX:MaxRAMPercentage=80
+
+  share:
+    image: docker.io/alfresco/alfresco-share:23.1.1
+    mem_limit: 1g
+    container_name: $W9_ID-share # add by Websoft9
+    environment:
+      REPO_HOST: "alfresco"
+      REPO_PORT: "8080"
+      JAVA_OPTS: >-
+        -XX:MinRAMPercentage=50
+        -XX:MaxRAMPercentage=80
+        -Dalfresco.host=$W9_URL
+        -Dalfresco.port=8080
+        -Dalfresco.context=alfresco
+        -Dalfresco.protocol=http
+
+  postgres:
+    image: postgres:14.4
+    mem_limit: 512m
+    container_name: $W9_ID-postgresql  # add by Websoft9
+    environment:
+      - POSTGRES_PASSWORD=$W9_POWER_PASSWORD
+      - POSTGRES_USER=alfresco
+      - POSTGRES_DB=alfresco
+    command: postgres -c max_connections=300 -c log_min_messages=LOG
+    volumes:
+      - postgres:/var/lib/postgresql
+
+  solr6:
+    image: docker.io/alfresco/alfresco-search-services:2.0.8.2
+    mem_limit: 2g
+    container_name: $W9_ID-solr6
+    environment:
+      # Solr needs to know how to register itself with Alfresco
+      SOLR_ALFRESCO_HOST: $W9_ID-alfresco # Modify by Websoft9
+      SOLR_ALFRESCO_PORT: "8080"
+      # Alfresco needs to know how to call solr
+      SOLR_SOLR_HOST: $W9_ID-solr6 # Modify by Websoft9
+      SOLR_SOLR_PORT: "8983"
+      # Create the default alfresco and archive cores
+      SOLR_CREATE_ALFRESCO_DEFAULTS: "alfresco,archive"
+      # HTTPS or SECRET
+      ALFRESCO_SECURE_COMMS: "secret"
+      # SHARED SECRET VALUE
+      JAVA_TOOL_OPTIONS: >-
+        -Dalfresco.secureComms.secret=secret
+
+  activemq:
+    image: alfresco/alfresco-activemq:5.18-jre17-rockylinux8
+    mem_limit: 1g
+    container_name: $W9_ID-activemq  # add by Websoft9
+
+  content-app:
+    image: alfresco/alfresco-content-app:4.3.0
+    container_name: $W9_ID-app  # add by Websoft9
+    mem_limit: 128m
+    environment:
+      APP_BASE_SHARE_URL: "http://$W9_URL:8080/aca/#/preview/s"
+
+  control-center:
+    image: quay.io/alfresco/alfresco-control-center:8.3.0
+    container_name: $W9_ID-control  # add by Websoft9
+    mem_limit: 128m
+    environment:
+      APP_CONFIG_PROVIDER: "ECM"
+      APP_CONFIG_AUTH_TYPE: "BASIC"
+      BASE_PATH: ./
+
+  proxy:
+    image: alfresco/alfresco-acs-nginx:3.4.2
+    container_name: $W9_ID  # add by Websoft9
+    mem_limit: 128m
+    environment:
+      DISABLE_PROMETHEUS: "true"
+      DISABLE_SYNCSERVICE: "true"
+      DISABLE_ADW: "true"
+      ENABLE_CONTENT_APP: "true"
+    depends_on:
+      - alfresco
+      - content-app
+      - control-center
+    ports:
+      - "${W9_HTTP_PORT_SET}:8080"
+    env_file:
+      - .env
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  postgres:
+  alfresco:

@@ -1,0 +1,50 @@
+# image: https://hub.docker.com/r/espocrm/espocrm
+# dockfile: https://github.com/espocrm/espocrm-docker
+# docs: https://docs.espocrm.com/administration/installation-by-script/
+# docker compose: https://docs.espocrm.com/administration/docker/installation/#install-espocrm-with-docker-compose
+
+version: '3.8'
+
+services:
+
+  mariadb:
+    image: mariadb:$W9_DB_VERSION
+    container_name: $W9_ID-mariadb
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --innodb_log_buffer_size=30M
+    volumes:
+      - mariadb:/var/lib/mysql
+    environment:
+      MARIADB_DATABASE: $W9_ID
+      MARIADB_USER: $W9_ID
+      MARIADB_PASSWORD: $W9_POWER_PASSWORD
+      MARIADB_ROOT_PASSWORD: $W9_POWER_PASSWORD
+
+  espocrm:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID
+    env_file: 
+      - .env
+    volumes:
+      - espocrm:/var/www/html
+    restart: unless-stopped
+    ports:
+      - ${W9_HTTP_PORT_SET}:80
+
+  # This is need for Cron
+  espocrm-daemon:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID-daemon
+    volumes:
+      - espocrm:/var/www/html
+    restart: unless-stopped
+    entrypoint: docker-daemon.sh
+          
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+      
+volumes:
+  mariadb:
+  espocrm:

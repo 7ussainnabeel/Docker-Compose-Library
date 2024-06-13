@@ -1,0 +1,50 @@
+# docs: https://docs.mattermost.com/install/install-docker.html#deploy-mattermost-on-docker-for-production-use
+# image: https://hub.docker.com/r/mattermost/mattermost-team-edition
+
+version: '3.8'
+
+services:
+  mattermost:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - ${W9_HTTP_PORT_SET}:8065
+    volumes:
+      - mattermost_config:/mattermost/config:rw
+      - mattermost_data:/mattermost/data:rw
+      - mattermost_logs:/mattermost/logs:rw
+      - mattermost_plugins:/mattermost/plugins:rw
+      - mattermost_client_plugins:/mattermost/client/plugins:rw
+      - mattermost_bleve-indexes:/mattermost/bleve-indexes:rw
+    env_file: .env
+    depends_on: 
+      - postgres
+
+  postgres:
+    container_name: $W9_ID-postgresql
+    image: postgres:$W9_DB_VERSION
+    restart: unless-stopped
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    environment:
+      - TZ
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=$W9_RCODE
+      - POSTGRES_DB=mattermost
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  mattermost_config:
+  mattermost_data:
+  mattermost_logs:
+  mattermost_plugins:
+  mattermost_client_plugins:
+  mattermost_bleve-indexes:
+  postgres:

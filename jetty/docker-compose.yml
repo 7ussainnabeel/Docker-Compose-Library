@@ -1,0 +1,26 @@
+# image: https://hub.docker.com/_/jetty
+
+version: '3.8'
+services:
+  jetty:
+    container_name: ${W9_ID}
+    image: $W9_REPO:$W9_VERSION
+    restart: unless-stopped
+    user: root
+    env_file:
+      - .env
+    ports:
+      - '${W9_HTTP_PORT_SET}:8080'
+    volumes:
+     - jetty:/var/lib/jetty/webapps
+     - ./src/cmd.sh:/usr/src/app/cmd.sh
+    command: /bin/bash -c "bash /usr/src/app/cmd.sh && java -jar /usr/local/jetty/start.jar"
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  jetty:
+

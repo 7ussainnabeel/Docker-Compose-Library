@@ -1,0 +1,42 @@
+# compose: https://github.com/nocobase/nocobase/blob/main/docker/app-mysql/docker-compose.yml
+# docs: https://docs-cn.nocobase.com/welcome/getting-started/installation/docker-compose
+
+
+version: '3.8'
+
+services:
+  app:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    volumes:
+      - nocobase:/app/nocobase/storage
+    ports:
+      - "$W9_HTTP_PORT_SET:80"
+    env_file: .env
+
+  mysql:
+    image: mysql:$W9_DB_VERSION
+    container_name: $W9_ID-mysql
+    environment:
+      MYSQL_DATABASE: $W9_ID
+      MYSQL_USER: $W9_ID
+      MYSQL_PASSWORD: $W9_POWER_PASSWORD
+      MYSQL_ROOT_PASSWORD: $W9_POWER_PASSWORD
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+     - mysql:/var/lib/mysql
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+    
+volumes:
+  mysql:
+    driver: local
+  nocobase:
+    driver: local

@@ -1,0 +1,27 @@
+# image: https://hub.docker.com/_/microsoft-mssql-server
+# docs: https://docs.microsoft.com/en-us/sql/linux/quickstart-install-connect-docker
+
+version: "3.8"
+
+services:
+  sqlserver:
+    image: $W9_REPO:${W9_VERSION}-latest
+    container_name: ${W9_ID}
+    env_file: .env
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${W9_LOGIN_PASSWORD}
+      - MSSQL_PID=${W9_PID}
+    ports:
+      - ${W9_DB_PORT_SET}:1433
+    volumes:
+      - mssql_data:/var/opt/mssql
+    restart: unless-stopped
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  mssql_data:

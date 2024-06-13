@@ -1,0 +1,49 @@
+# image: https://hub.docker.com/r/directus/directus
+# docs: https://docs.directus.io/self-hosted/docker-guide.html
+# compose: https://docs.directus.io/self-hosted/docker-guide.html#example-docker-compose
+           
+
+version: '3.8'
+
+services:
+  directus:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID
+    env_file: .env
+    ports:
+      - $W9_HTTP_PORT_SET:$W9_HTTP_PORT
+    volumes:
+      - directus_uploads:/directus/uploads
+      - directus_extensions:/directus/extensions
+      - directus_sqlite:/directus/database
+    restart: unless-stopped
+    depends_on:
+      - cache
+      - postgresql
+
+  postgresql:
+    image: postgres:$W9_DB_POSTGRE_VERSION
+    container_name: $W9_ID-postgresql
+    restart: unless-stopped
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: $W9_ID
+      POSTGRES_USER: $W9_ID
+      POSTGRES_PASSWORD: $W9_POWER_PASSWORD
+
+  cache:
+    image: redis:6
+    container_name: $W9_ID-redis
+    restart: unless-stopped
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  postgres:
+  directus_uploads:
+  directus_extensions:
+  directus_sqlite:

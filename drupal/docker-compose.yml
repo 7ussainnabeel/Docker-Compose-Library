@@ -1,0 +1,38 @@
+# image: https://hub.docker.com/r/bitnami/drupal
+
+version: '3.8'
+
+services:
+  drupal:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID
+    ports:
+      - $W9_HTTP_PORT_SET:8080
+    volumes:
+      - drupal:/bitnami/drupal
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - db
+
+  db:
+    image: mysql:$W9_MYSQL_VERSION
+    container_name: $W9_ID-mysql
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=$W9_ID
+      - MYSQL_USER=$W9_ID
+      - MYSQL_PASSWORD=$W9_POWER_PASSWORD
+      - MYSQL_ROOT_PASSWORD=$W9_POWER_PASSWORD
+
+networks:
+  default:
+    name: $W9_NETWORK
+    external: true
+
+volumes:
+  drupal:
+  mysql:

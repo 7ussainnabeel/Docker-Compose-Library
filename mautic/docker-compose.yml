@@ -1,0 +1,49 @@
+# image: https://hub.docker.com/r/mautic/mautic/tags
+# docs: https://github.com/mautic/docker-mautic
+
+
+version: '3.8'
+
+services:
+  mautic:
+    image: ${W9_REPO}:${W9_VERSION}
+    container_name: ${W9_ID}
+    ports:
+      - ${W9_HTTP_PORT_SET}:${W9_HTTP_PORT}
+    volumes:
+      - mautic:/var/www/html
+    env_file:
+      - .env
+    environment:
+      # MAUTIC_DB_USER must root, otherwise container error
+      - MAUTIC_DB_HOST=${W9_ID}-mysql
+      - MAUTIC_DB_USER=root
+      - MAUTIC_DB_PASSWORD=${W9_POWER_PASSWORD}
+      - MAUTIC_DB_NAME=${W9_ID}
+    depends_on:
+      - mysql
+    restart: unless-stopped
+
+
+  mysql:
+    image: mysql:5.7
+    container_name: ${W9_ID}-mysql
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql:/var/lib/mysql
+    environment:
+      MYSQL_DATABASE: ${W9_ID}
+      MYSQL_USER: ${W9_ID}
+      MYSQL_PASSWORD: ${W9_POWER_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${W9_POWER_PASSWORD}
+    env_file: .env
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  mautic:
+  mysql:

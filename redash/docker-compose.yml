@@ -1,0 +1,80 @@
+# compose: https://github.com/getredash/setup/blob/master/data/docker-compose.yml
+# image: https://hub.docker.com/r/redash/redash
+# install method: https://github.com/getredash/setup/blob/master/setup.sh
+# docs: https://redash.io/help/open-source/setup
+
+version: "3.8"
+x-redash-service: &redash-service
+  image: ${W9_REPO}:${W9_VERSION}
+  depends_on:
+    - postgres
+    - redis
+  env_file: .env
+  restart: unless-stopped
+  
+services:
+  # add by Websoft9
+  create_db:  
+    <<: *redash-service  
+    command: create_db   
+    restart: "no"
+
+  server:
+    <<: *redash-service
+    command: server
+    container_name: ${W9_ID}
+    ports:
+      - ${W9_HTTP_PORT_SET}:5000
+    environment:
+      REDASH_WEB_WORKERS: 4
+    depends_on:
+      - postgres
+      - redis
+      - create_db
+
+  scheduler:
+    <<: *redash-service
+    command: scheduler
+    container_name: ${W9_ID}-scheduler
+    environment:
+      QUEUES: "celery"
+      WORKERS_COUNT: 1
+  scheduled_worker:
+    <<: *redash-service
+    command: worker
+    container_name: ${W9_ID}-scheduled
+    environment:
+      QUEUES: "scheduled_queries,schemas"
+      WORKERS_COUNT: 
+      
+  adhoc_worker:
+    <<: *redash-service
+    command: worker
+    container_name: ${W9_ID}-adhoc
+    environment:
+      QUEUES: "queries"
+      WORKERS_COUNT: 2
+
+  redis:
+    image: redis:7-alpine
+    container_name: ${W9_ID}-redis
+    restart: always
+    volumes:
+      - redis:/data
+
+  postgres:
+    image: postgres:$W9_DB_VERSION
+    container_name: ${W9_ID}-postgres
+    env_file: .env
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  postgres:
+  redis:
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true

@@ -1,0 +1,25 @@
+# image: https://hub.docker.com/r/thijsvanloef/palworld-server-docker
+# docs: https://palworld-server-docker.loef.dev/
+
+version: '3.8'
+
+services:
+  palworld:
+    image: $W9_REPO:$W9_VERSION
+    restart: unless-stopped
+    container_name: $W9_ID
+    stop_grace_period: 30s # Set to however long you are willing to wait for the container to gracefully stop
+    ports:
+      - $W9_UDP_PORT_SET:8211/udp
+      - $W9_UDP2_PORT_SET:27015/udp
+    volumes:
+        - palworld_data:/palworld/
+    env_file: .env
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  palworld_data:

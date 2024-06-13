@@ -1,0 +1,47 @@
+# image: https://hub.docker.com/r/thingsboard/tb-postgres/
+# docs: https://thingsboard.io/docs/user-guide/install/docker/
+
+
+version: '3.8'
+
+services:
+  thingsboard:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - ${W9_HTTP_PORT_SET}:9090
+      #- "1883:1883" # For MQTT 
+      #- "7070:7070" # For Edge RPC
+      #- "5683-5688:5683-5688/udp" # UDP for COAP and LwM2M
+    environment:
+      TB_QUEUE_TYPE: rabbitmq
+      TB_QUEUE_RABBIT_MQ_USERNAME: guest
+      TB_QUEUE_RABBIT_MQ_PASSWORD: guest
+      TB_QUEUE_RABBIT_MQ_HOST: ${W9_ID}-rabbitmq
+      TB_QUEUE_RABBIT_MQ_PORT: 5672
+    depends_on:
+      - rabbitmq
+    volumes:
+      - 'data:/data'
+      - 'logs:/var/log/thingsboard'
+
+  rabbitmq:
+    container_name: ${W9_ID}-rabbitmq
+    image: rabbitmq
+    restart: unless-stopped
+    expose:
+      - '5672'
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  data:
+  logs:
+  rabbitmq_data:

@@ -1,0 +1,24 @@
+# image: https://container-registry.oracle.com/ords/f?p=113:10::::::
+# docs: http://docs.oracle.com/en/database/
+
+version: '3.8'
+
+services:
+  oracleex:
+    image: $W9_REPO:${W9_VERSION}
+    container_name: ${W9_ID}  
+    env_file: .env
+    volumes:
+      - data:/opt/oracle/oradata
+    ports:
+      -  ${W9_DB_PORT_SET}:1521
+      -  ${W9_HTTPS_PORT_SET}:5500
+    restart: unless-stopped
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  data:

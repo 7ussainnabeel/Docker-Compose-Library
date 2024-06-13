@@ -1,0 +1,101 @@
+# image: https://hub.docker.com/r/bitnami/magento
+
+version: '3.8'
+
+services:
+  magento:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID
+    restart: unless-stopped
+    ports:
+      - $W9_HTTP_PORT_SET:$W9_HTTP_PORT
+    env_file:
+      - .env
+    environment:
+      - MAGENTO_HOST=$W9_URL
+      - MAGENTO_DATABASE_USER=$W9_ID
+      - MAGENTO_DATABASE_NAME=$W9_ID
+      - MAGENTO_DATABASE_PASSWORD=$W9_POWER_PASSWORD
+    volumes:
+      - 'magento_data:/bitnami/magento'
+    depends_on:
+      - mariadb
+      - elasticsearch
+
+  magentocli:
+    image: $W9_REPO:$W9_VERSION
+    container_name: $W9_ID-cli
+    volumes:
+      - magento_data:/data
+    depends_on:
+      - magento
+    entrypoint: |
+      /bin/sh -c "
+      apt update -y
+      apt install -y --no-install-recommends wget
+      while [ ! -f /data/bin/magento ]; do
+        echo 'Waiting for bin/magento to be created...'
+        sleep 10
+      done
+      # This url is download from https://raw.githubusercontent.com/magento-l10n/language-zh_CN/master/zh_CN.csv
+      # When update magento, you should update src/zh_CN.csv file
+      while [ ! -f /data/vendor/magento/language-zh_hans_cn/zh_CN.csv ]; do
+        echo 'try to download zh_CN.csv...'
+        wget https://websoft9.github.io/docker-library/apps/magento/src/zh_CN.csv -O /data/vendor/magento/language-zh_hans_cn/zh_CN.csv
+        sleep 10
+      done
+      cd /data
+      bin/magento setup:static-content:deploy zh_Hans_CN
+      bin/magento indexer:reindex
+      echo 'Set zh_Hans_CN ok ...'
+      if [ -z \"$W9_URL\" ]; then
+        echo 'W9_URL is empty, not need to change, exiting...'
+        exit 0
+      fi
+      echo $W9_URL
+      if echo \"\$W9_URL\" | grep -qE '^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\$'; then
+        wp_url=$W9_URL:$W9_HTTP_PORT_SET
+        echo 'URL is IP'
+      else
+        wp_url=$W9_URL
+        echo 'URL is not IP'
+      fi
+      echo 'Start to set URL ...'
+      bin/magento setup:store-config:set --base-url=\"http://$$wp_url\"
+      # base-url-secure is for https url
+      #bin/magento setup:store-config:set --base-url-secure=\"https://$$wp_url\"
+      bin/magento cache:clean
+      bin/magento cache:flush
+      "
+
+  mariadb:
+    image: docker.io/bitnami/mariadb:$W9_MARIADB_VERSION
+    container_name: $W9_ID-mariadb
+    restart: unless-stopped
+    environment:
+      - MARIADB_USER=$W9_ID
+      - MARIADB_DATABASE=$W9_ID
+      - MARIADB_PASSWORD=$W9_POWER_PASSWORD
+      - MARIADB_ROOT_PASSWORD=$W9_POWER_PASSWORD
+    volumes:
+      - 'mariadb_data:/bitnami/mariadb'
+
+  elasticsearch:
+    image: docker.io/bitnami/elasticsearch:7
+    restart: unless-stopped
+    container_name: $W9_ID-elasticsearch
+    volumes:
+      - 'elasticsearch_data:/bitnami/elasticsearch/data'
+
+volumes:
+  mariadb_data:
+    driver: local
+  magento_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+
+networks:
+  default:
+    name: $W9_NETWORK
+    external: true

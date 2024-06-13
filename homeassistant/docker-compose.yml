@@ -1,0 +1,28 @@
+# image: https://hub.docker.com/r/homeassistant/home-assistant
+# docs: https://www.home-assistant.io/installation/linux
+# compose: https://www.home-assistant.io/installation/linux#docker-compose
+
+
+version: '3.8'
+services:
+  homeassistant:
+    container_name: $W9_ID
+    image: $W9_REPO:$W9_VERSION
+    ports:
+      - $W9_HTTP_PORT_SET:8123
+    volumes:
+      - hs_config:/config
+      - /etc/localtime:/etc/localtime:ro
+      #- /run/dbus:/run/dbus:ro # For bluetooth integration
+    restart: unless-stopped
+    # Not need for cloud server
+    #privileged: true
+    env_file: .env
+  
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  hs_config: 

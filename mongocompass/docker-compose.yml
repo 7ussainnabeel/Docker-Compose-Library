@@ -1,0 +1,31 @@
+# Powered by Websoft9
+
+version: '3.8'
+
+services:
+  mongocompass:
+    image: ${W9_REPO}:${W9_VERSION}
+    container_name: ${W9_ID}
+    restart: unless-stopped
+    ports:
+      - '${W9_HTTPS_PORT_SET}:6901'
+    env_file: .env
+    environment:
+      - VNC_PW=$W9_POWER_PASSWORD
+
+  mongo:
+    image: mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    profiles:
+      - db
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  mongocompass:

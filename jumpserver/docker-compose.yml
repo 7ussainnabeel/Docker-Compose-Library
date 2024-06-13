@@ -1,0 +1,8 @@
+version: '3.8'
+
+services:
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true

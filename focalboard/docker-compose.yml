@@ -1,0 +1,25 @@
+# image: https://hub.docker.com/r/mattermost/focalboard
+# compose: https://github.com/mattermost/focalboard/blob/main/docker/docker-compose.yml
+# docs: https://docs.mattermost.com/guides/deployment.html#server-deployment
+
+version: '3.8'
+
+services:
+  focalboard:
+    container_name: $W9_ID
+    image: $W9_REPO:$W9_VERSION
+    env_file: .env
+    restart: unless-stopped
+    ports:
+      - "$W9_HTTP_PORT_SET:8000"
+    volumes:
+      - fbdata:/opt/focalboard/data
+
+networks:
+  default:
+    name: ${W9_NETWORK}
+    external: true
+
+volumes:
+  fbdata:
+    driver: local
