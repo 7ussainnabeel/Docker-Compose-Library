@@ -23,7 +23,7 @@
 ## About
 The Docker-Compose Library is a curated collection of ready-to-use and continuously updated open-source applications. By leveraging Docker-Compose, this library simplifies the deployment and management of various applications, making it easier for developers and system administrators to set up and run complex software environments.
 
-## Applications list
+### Applications list
 
 | Name                                        | Category              |
 | ------------------------------------------- | --------------------- |
