@@ -177,7 +177,7 @@ For any questions or suggestions, please open an issue or contact the repository
 <p  align="center">
 Homelabs are fun</p>
 <br/> 
-<p  align="center">
+
 ```
    _    _                                                    _       _     
  | |  | |                                                  | |     | |    
@@ -187,4 +187,3 @@ Homelabs are fun</p>
  |_|  |_|\___/ \__,_|___/\___||___/\___|_|    \_/ \___|_|  |_|\__,_|_.__/ 
 
 ```
-</P>
