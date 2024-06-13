@@ -156,7 +156,7 @@ Feel free to contribute by adding more applications or updating the existing one
 * Open a pull request with a detailed description of the changes
 
 ## License
-```
+
 The MIT License (MIT)
 Copyright (c) Hussain Dahi <hnabeel3@gmail.com> 
 
@@ -166,18 +166,12 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-```
 
 > **[Docker-Compose-Library](https://github.com/7ussainnabeel/Docker-Compose-Library.git)** is Licensed under [Hussain Dahi](https://github.com/7ussainnabeel/Docker-Compose-Library?tab=MIT-1-ov-file).
 
 
 ## Contact
-For any questions or suggestions, please open an issue or contact the repository owner [Hussain Dahi](hnabeel3@gmail.com).
-## 
-<p  align="center">
-Homelabs are fun</p>
-<br/> 
-
+For any questions or suggestions, please open an issue or contact the repository owner [Hussain Dahi](hnabeel3@gmail.com).##
 ```
    _    _                                                    _       _     
  | |  | |                                                  | |     | |    
