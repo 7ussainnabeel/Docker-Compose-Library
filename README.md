@@ -172,14 +172,10 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 ## Contact
 For any questions or suggestions, please open an issue or contact the repository owner [Hussain Dahi](hnabeel3@gmail.com).
-<p  align="center">
-Homelabs are fun</p>
+<h3 align=“center">Runing your services in your home is fun :)</h3>
 <br/> 
-
 ```
      __      __  ___ __  ___ __      ___ __          __  
 |__|/  \|  |/__`|__ /__`|__ |__)\  /|__ |__)|    /\ |__) 
 |  |\__/\__/.__/|___.__/|___|  \ \/ |___|  \|___/~~\|__) 
-                                                         
-
 ```
