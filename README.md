@@ -53,91 +53,223 @@ The Docker-Compose Library is a curated collection of ready-to-use and continuou
 
 ## Applications list
 
-### Administration
-* Aurora-Admin-Panel  
-* dashy  
-* rancherv1  
-* traefik  
+# Available Applications
 
-### Communication
-* chat  
-* crewlink  
-* rocketchat  
-* teamspeak  
+## Admin Panels
+**Aurora-Admin-Panel**  
+**appsmith**  
+**nocobase**  
+**nocodb**  
+**portainer**  
+**uptimekuma**  
+**netdata**  
+**grafana**  
+**dashboard**  
 
-### Collaboration
-* collaboration  
-* remotely  
-* nextcloud  
-* mykuma  
+## Messaging and Collaboration
+**bigbluebutton**  
+**chatwoot**  
+**humhub**  
+**mattermost**  
+**rocketchat**  
+**teamspeak**  
+**jitsi**  
+**discourse**  
+**crewlink**  
+**snapdrop**  
 
-### Content Management
-* blog  
-* cms  
-* docuseal  
-* rainloop  
-* wiki  
-* wordpress  
+## Content Management Systems (CMS)
+**alfresco**  
+**joomla**  
+**drupal**  
+**wordpress**  
+**ghost**  
+**xwiki**  
+**mediawiki**  
+**wiki**  
 
-### Customer Relationship Management (CRM)
-* crm  
-* dolibarr  
-* faveo  
-* freescout  
-* uvdesk  
-* zammad  
+## Databases
+**arangodb**  
+**clickhouse**  
+**couchdb**  
+**dgraph**  
+**influxdb**  
+**mariadb**  
+**mongodb**  
+**mysql**  
+**neo4j**  
+**postgresql**  
+**redis**  
+**sqlserver**  
+**prometheus**  
 
-### Development
-* development  
-* full_php_dev_stack  
-* gatling-grafana  
-* gitea  
-* gitlab  
-* jekyll-static-ssh-deploy  
-* scripts  
+## Development
+**ansible**  
+**dotnet**  
+**go**  
+**nodejs**  
+**python**  
+**ruby**  
+**gitlab**  
+**gitea**  
+**codeserver**  
+**jupyterhub**  
+**jenkins**  
+**maven**  
+**php**  
+**phpmyadmin**  
+**graphql**  
 
-### E-commerce
-* ecommerce  
-* invoice-ninja  
-* peppermint  
+## ERP and CRM
+**akaunting**  
+**dolibarr**  
+**erp**  
+**erpnext**  
+**espocrm**  
+**odoo**  
+**saleor**  
+**sylius**  
 
-### Enterprise Resource Planning (ERP)
-* erp  
+## File Management
+**kodbox**  
+**owncloud**  
+**nextcloud**  
+**seafile**  
+**storage**  
 
-### Multimedia
-* multimedia  
-* sinusbot  
-* streaming  
+## Security and Authentication
+**bitwarden**  
+**vault**  
+**wireguard**  
+**openvpn**  
+**passbolt**  
+**teleport**  
 
-### Networking
-* openvpn  
-* nginx_proxy-and-companion  
+## Machine Learning and AI
+**autogptnextweb**  
+**flowise**  
+**tensorflow**  
 
-### Project Management
-* business-intelligence  
-* project-management  
-* opeprojects  
+## Monitoring and Logging
+**graylog**  
+**logstash**  
+**zabbix**  
 
-### Storage
-* database  
-* document  
-* storage  
+## Multimedia
+**jellyfin**  
+**navidrome**  
 
-### Ticketing Systems
-* trouble-ticketing  
+## Networking
+**coredns**  
+**haproxy**  
+**nginx**  
+**nginxproxymanager**  
+**traefik**  
 
-### Security
-* passbolt  
+## E-commerce
+**magento**  
+**prestashop**  
+**nopcommerce**  
 
-### Web Analytics
-* matomo  
+## IoT and Home Automation
+**homeassistant**  
+**thingsboard**  
 
-### Web Server
-* varnish-cache  
+## Utilities
+**aria2**  
+**caddy**  
+**cadvisor**  
+**clamav**  
+**guacamole**  
+**excalidraw**  
+**screego**  
+**tinyproxy**  
+**varnish**  
+**varnish-cache**  
+**apache**  
+**kasmweb**  
 
-### Games
-* ark-server  
-* crewlink
+## Miscellaneous
+**blog**  
+**document**  
+**docusaurus**  
+**docuseal**  
+**jekyll-static-ssh-deploy**  
+**project-management**  
+**business-intelligence**  
+**countly**  
+**dashy**  
+**datahub**  
+**falcon**  
+**faveo**  
+**full_php_dev_stack**  
+**gatling-grafana**  
+**geminiprochat**  
+**geoserver**  
+**metabase**  
+**mingdao**  
+**minio**  
+**mongocompass**  
+**mongoexpress**  
+**moodle**  
+**mosquitto**  
+**mqttx**  
+**multimedia**  
+**mykuma**  
+**navidrome**  
+**nextterminal**  
+**nginx_proxy-and-companion**  
+**openjdk**  
+**opensearch**  
+**opeprojects**  
+**oracle**  
+**palworld**  
+**penpot**  
+**peppermint**  
+**pgadmin**  
+**pimcore**  
+**plausible**  
+**pocketbase**  
+**postgrest**  
+**pydio**  
+**rainbond**  
+**rainloop**  
+**rancher**  
+**rancherv1**  
+**redash**  
+**redisinsight**  
+**redmine**  
+**redpandaconsole**  
+**remotely**  
+**rethinkdb**  
+**rundeck**  
+**sakai**  
+**scratch**  
+**scripts**  
+**semaphore**  
+**sinusbot**  
+**squid**  
+**srs**  
+**sscms**  
+**strapi**  
+**streaming**  
+**supabase**  
+**superset**  
+**teamcity**  
+**theia**  
+**tomee**  
+**tooljet**  
+**trouble-ticketing**  
+**typesense**  
+**typo3**  
+**umami**  
+**umbraco**  
+**uvdesk**  
+**v2ray**  
+**zentao**  
+**zammad**  
+**zookeeper**
+
 ## Support
 
 For support, [email](hnabeel3@gmail.com).
