@@ -175,8 +175,9 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 For any questions or suggestions, please open an issue or contact the repository owner [Hussain Dahi](hnabeel3@gmail.com).
 ## 
 <p  align="center">
-Homelabs are fun
+Homelabs are fun</p>
 <br/> 
+<p>
    _    _                                                    _       _     
  | |  | |                                                  | |     | |    
  | |__| | ___  _   _ ___  ___  ___  ___ _ ____   _____ _ __| | __ _| |__  
