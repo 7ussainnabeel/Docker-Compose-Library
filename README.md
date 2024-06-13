@@ -175,10 +175,11 @@ For any questions or suggestions, please open an issue or contact the repository
 <p  align="center">
 Running your services in your home is fun :)</p>
 <br/> 
-<p align="center">
+
 ```
      __      __  ___ __  ___ __      ___ __          __  
 |__|/  \|  |/__`|__ /__`|__ |__)\  /|__ |__)|    /\ |__) 
 |  |\__/\__/.__/|___.__/|___|  \ \/ |___|  \|___/~~\|__) 
+                                                         
+
 ```
-</p>
