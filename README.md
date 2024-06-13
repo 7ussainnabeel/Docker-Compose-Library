@@ -171,13 +171,15 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 
 ## Contact
-For any questions or suggestions, please open an issue or contact the repository owner [Hussain Dahi](hnabeel3@gmail.com).##
+For any questions or suggestions, please open an issue or contact the repository owner [Hussain Dahi](hnabeel3@gmail.com).
+<p  align="center">
+Homelabs are fun</p>
+<br/> 
+
 ```
-   _    _                                                    _       _     
- | |  | |                                                  | |     | |    
- | |__| | ___  _   _ ___  ___  ___  ___ _ ____   _____ _ __| | __ _| |__  
- |  __  |/ _ \| | | / __|/ _ \/ __|/ _ \ '__\ \ / / _ \ '__| |/ _` | '_ \ 
- | |  | | (_) | |_| \__ \  __/\__ \  __/ |   \ V /  __/ |  | | (_| | |_) |
- |_|  |_|\___/ \__,_|___/\___||___/\___|_|    \_/ \___|_|  |_|\__,_|_.__/ 
+     __      __  ___ __  ___ __      ___ __          __  
+|__|/  \|  |/__`|__ /__`|__ |__)\  /|__ |__)|    /\ |__) 
+|  |\__/\__/.__/|___.__/|___|  \ \/ |___|  \|___/~~\|__) 
+                                                         
 
 ```
