@@ -1,100 +1,27 @@
-Project Name
-================
 
-This is a brief description of the project.
+<h1 align=“center">This Project is a Docker Compose Library</h1>
 
-Table of Contents
-Getting Started
-Features
-Installation
-Usage
-Contributing
-License
-Getting Started
-To get started with this project, follow these steps:
+<p align="center">
+<b><i>Comprehensive, Docker-Compose files of open-source softwares used in businesses and home labs</I></b>
+<br/>
+<b></b>
 
-Prerequisites
-[List any prerequisites, such as software or libraries required]
-Installation
-See the Installation section for instructions on how to install this project.
+</p>
 
-Features
-[List the key features of the project]
-Installation
-Method 1: Clone the Repository
-Copy code
-git clone https://github.com/your-username/your-repo-name.git
-Method 2: Install using [Package Manager]
-Copy code
-[package-manager] install [package-name]
-Usage
-[Provide examples of how to use the project]
-Contributing
-Contributions are welcome! Please see the Contributing Guidelines for more information.
+---
 
-License
-This project is licensed under the MIT License. See the LICENSE file for more details.
+#### Contents
 
+- **[About](#about)**
+  - [Features](#Applications list)
+  - [Configuration Options](#configuring)
+  - [Support](#supporting)
+- **[License](#license)**
 
+---
 
-
-
-Docker-Compose Library
-A collection of ready-to-use and hopefully updated open-source applications with the help of Docker-Compose.
-
-Clone the Repository
-bash
-Copy code
-git clone https://github.com/7ussainnabeel/Docker-Compose-Library.git
-cd Docker-Compose-Library
-Usage
-Navigate to the Repository
-
-After cloning the repository, navigate to the Docker-Compose-Library directory:
-
-bash
-Copy code
-cd Docker-Compose-Library
-Choose a Folder
-
-Prompt the user to choose a folder number corresponding to the desired application:
-
-bash
-Copy code
-echo "Please choose a folder number corresponding to the application you want to run:"
-ls -1
-read -p "Enter the folder number: " folder_number
-Change Directory
-
-Change to the chosen folder:
-
-bash
-Copy code
-cd $(ls -1 | sed -n "${folder_number}p")
-Run Docker-Compose
-
-Run docker-compose in detached mode:
-
-bash
-Copy code
-docker-compose up -d
-Verify Status
-
-Verify the status of the containers:
-
-bash
-Copy code
-docker-compose ps
-Contributing
-Feel free to contribute by adding more applications or updating the existing ones. Make sure to:
-
-License
-This project is licensed under the MIT License. See the LICENSE file for more details.
-
-Contact
-For any questions or suggestions, please open an issue or contact the repository owner.
-
-Enjoy using the Docker-Compose Library! 🚀
+## About
+The Docker-Compose Library is a curated collection of ready-to-use and continuously updated open-source applications. By leveraging Docker-Compose, this library simplifies the deployment and management of various applications, making it easier for developers and system administrators to set up and run complex software environments.
 
 ## Applications list
 
@@ -136,17 +63,58 @@ Enjoy using the Docker-Compose Library! 🚀
 | [dokuwiki](wiki/dokuwiki.yml)               | wiki                  |
 | [mediawiki](wiki/mediawiki.yml)             | wiki                  |
 
-## scripts
 
-### unify_yamls.py
+###### Description
+An IP address (Internet Protocol address) is a numerical label assigned to each device connected to a network / the internet. The IP associated with a given domain can be found by querying the Domain Name System (DNS) for the domain's A (address) record.
 
-undocumented and probably going to be deprecated
 
-### v1_to_v2.py
 
-deprecated: bulk update from v1 to v2 composer:
-`find . -name "*.yml" -exec python v1_to_v2.py --source {} --destination {} \;`
-# docker-compose
+### Supporting
 
-This is a collection of all my `docker-compose.yml`-files.  
-I hope they're time-saving for you guys.
+The repo will remain 100% free and open source..
+It's thanks to the support of the community that this project is able to be freely available for everyone :)
+
+
+## License
+
+> _**[Docker-Compose-Library](https://github.com/7ussainnabeel/Docker-Compose-Library.git)** is licensed under [MIT](/blob/HEAD/LICENSE) © [Hussain Dahi](https://dhahi.info) 2024._<br>
+> <sup align="right">For information, see <a href="https://tldrlegal.com/license/mit-license">TLDR Legal > MIT</a></sup>
+
+<details>
+<summary>Expand License</summary>
+
+```
+The MIT License (MIT)
+Copyright (c) Hussain Dahi <hnabeel3@gmail.com> 
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+```
+
+</details>
+
+<!-- License + Copyright -->
+<p  align="center">
+  <i>© <a href=“https://Dhahi.info”>Hussain Dahi</a> 2024</i><br>
+  <i>Licensed under <a href="https://github.com/7ussainnabeel">MIT</a></i><br>
+  <a href="https://github.com/7ussainnabeel"></a><br>
+  <sup>Thanks for visiting :)</sup>
+</p>
+
+<!-- Homelabs are fun -->
+<!-- 
+   _    _                                                    _       _     
+ | |  | |                                                  | |     | |    
+ | |__| | ___  _   _ ___  ___  ___  ___ _ ____   _____ _ __| | __ _| |__  
+ |  __  |/ _ \| | | / __|/ _ \/ __|/ _ \ '__\ \ / / _ \ '__| |/ _` | '_ \ 
+ | |  | | (_) | |_| \__ \  __/\__ \  __/ |   \ V /  __/ |  | | (_| | |_) |
+ |_|  |_|\___/ \__,_|___/\___||___/\___|_|    \_/ \___|_|  |_|\__,_|_.__/ 
+                                                                          
+                                                                          
+
+
+-->
