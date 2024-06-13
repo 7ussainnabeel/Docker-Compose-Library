@@ -13,7 +13,7 @@
 #### Contents
 
 - **[About](#about)**
-  - [Features](#Applications list)
+  - [Features](#Applicationslist)
   - [Configuration Options](#configuring)
   - [Support](#supporting)
 - **[License](#license)**
@@ -100,7 +100,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 <!-- License + Copyright -->
 <p  align="center">
   <i>© <a href=“https://Dhahi.info”>Hussain Dahi</a> 2024</i><br>
-  <i>Licensed under <a href="https://github.com/7ussainnabeel">MIT</a></i><br>
+  <i>Licensed under <a href="https://github.com/7ussainnabeel/Docker-Compose-Library?tab=MIT-1-ov-file">MIT</a></i><br>
   <a href="https://github.com/7ussainnabeel"></a><br>
   <sup>Thanks for visiting :)</sup>
 </p>
