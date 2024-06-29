@@ -69,6 +69,7 @@ select folder in */; do
   if [ -d "$folder" ]; then
     echo "Changing to the folder selected..."
     cd "$folder"
+    echo "Current directory: $(pwd)"
     break
   else
     echo "Invalid selection. Please choose a valid folder."
