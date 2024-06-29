@@ -50,8 +50,11 @@ if ! command -v docker-compose &> /dev/null
 then
     echo "Docker Compose is not installed. Installing Docker Compose..."
     
+    # Get the latest release version number from GitHub API
+    LATEST_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
+
     # Download the current stable release of Docker Compose
-    sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -oP '(?<=tag_name": "v)[^"]*')" -o /usr/local/bin/docker-compose
+    sudo curl -L "https://github.com/docker/compose/releases/download/$LATEST_VERSION/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
     
     # Apply executable permissions to the binary
     sudo chmod +x /usr/local/bin/docker-compose
