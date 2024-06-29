@@ -64,12 +64,14 @@ fi
 # Prompt user to choose a folder
 echo "Choose a folder to cd into:"
 select folder in */; do
-  break
+  if [ -d "$folder" ]; then
+    echo "Changing to the folder selected..."
+    cd "$folder"
+    break
+  else
+    echo "Invalid selection. Please choose a valid folder."
+  fi
 done
-
-# Cd into the chosen folder
-echo "Changing to the folder selected..."
-cd "$folder"
 
 # Run docker-compose up -d
 echo "Running docker-compose up -d..."
