@@ -61,6 +61,8 @@ else
     echo "Docker Compose is already installed."
 fi
 
+sleep 3
+
 # Prompt user to choose a folder
 echo "Choose a folder to cd into:"
 select folder in */; do
@@ -73,9 +75,13 @@ select folder in */; do
   fi
 done
 
+sleep 2
+
 # Run docker-compose up -d
 echo "Running docker-compose up -d..."
 sudo docker-compose up -d
+
+sleep 2
 
 # Verify the status with docker ps
 echo "Verifying the status with docker ps..."
