@@ -68,6 +68,7 @@ select folder in */; do
 done
 
 # Cd into the chosen folder
+echo "Changing to the folder selected..."
 cd "$folder"
 
 # Run docker-compose up -d
