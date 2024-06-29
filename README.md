@@ -38,8 +38,7 @@ This project provides a diverse set of Docker-Compose files, each pre-configured
   ```
 - Run the bash script
     ```
-  $ chmod +x startup.sh
-  $ ./startup.sh
+  $ bash startup.sh
     ```
 ## Deployment
 
