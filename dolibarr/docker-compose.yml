@@ -14,7 +14,7 @@ services:
             DOLI_DB_USER: root
             DOLI_DB_PASSWORD: root
             DOLI_DB_NAME: dolibarr
-            DOLI_URL_ROOT: 'https://dhahi.houseserverlab.com'
+            DOLI_URL_ROOT: 'URL' #change the url to your liking befor using it
             PHP_INI_DATE_TIMEZONE: 'Asia/Bahrain'
         ports:
             - "8070:80"
