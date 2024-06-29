@@ -6,7 +6,7 @@ services:
         environment:
             MYSQL_ROOT_PASSWORD: root
             MYSQL_DATABASE: dolibarr
-        restart: always  # Indentation corrected
+
     web:
         image: tuxgasy/dolibarr
         environment:
@@ -14,11 +14,9 @@ services:
             DOLI_DB_USER: root
             DOLI_DB_PASSWORD: root
             DOLI_DB_NAME: dolibarr
-            DOLI_URL_ROOT: 'http://0.0.0.0' #change the url to your liking befor using it
+            DOLI_URL_ROOT: 'http://0.0.0.0'
             PHP_INI_DATE_TIMEZONE: 'Asia/Bahrain'
         ports:
-            - "8070:80"
+            - "80:80"
         links:
             - mariadb
-        restart: always  # This ensures the 'web' service also restarts always
-
