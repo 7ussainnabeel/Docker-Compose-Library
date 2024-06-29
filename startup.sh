@@ -58,11 +58,21 @@ then
     
     # Apply executable permissions to the binary
     sudo chmod +x /usr/local/bin/docker-compose
-    
-    echo "Docker Compose has been installed successfully."
+
+    # Check if docker-compose was successfully downloaded
+    if [[ -f /usr/local/bin/docker-compose ]]; then
+        echo "Docker Compose has been installed successfully."
+    else
+        echo "Failed to download Docker Compose."
+        exit 1
+    fi
 else
     echo "Docker Compose is already installed."
 fi
+
+# Verify Docker Compose installation
+echo "Docker Compose version:"
+docker-compose --version
 
 sleep 3
 
