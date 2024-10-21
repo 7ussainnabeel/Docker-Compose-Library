@@ -22,9 +22,9 @@ services:
     - DB_HOST=freescout-db
     - DB_NAME=freescout
     - DB_USER=freescout
-    - DB_PASS=F@r1en3e3fs
+    - DB_PASS=freescout
 
-    - SITE_URL=https://helpdesk.houseserverlab.com
+    - SITE_URL=https://freescout.example.com
     - ADMIN_EMAIL=admin@admin.com
     - ADMIN_PASS=freescout
     - ENABLE_SSL_PROXY=FALSE
@@ -41,7 +41,7 @@ services:
       - ROOT_PASS=password
       - DB_NAME=freescout
       - DB_USER=freescout
-      - DB_PASS=F@r1en3e3fs
+      - DB_PASS=freescout
 
       - CONTAINER_NAME=freescout-db
     restart: always
@@ -59,7 +59,7 @@ services:
       - DB_TYPE=mariadb
       - DB_NAME=freescout
       - DB_USER=freescout
-      - DB_PASS=F@r1en3e3fs
+      - DB_PASS=freescout
       - DB01_BACKUP_INTERVAL=1440
       - DB01_BACKUP_BEGIN=0000
       - DB_CLEANUP_TIME=8640
