@@ -1,23 +1,45 @@
 version: "3"
 
+# Edit this file then run 
+# docker-compose up -d
+# docker-compose logs
+
 services:
     mariadb:
         image: mariadb:latest
         environment:
-            MYSQL_ROOT_PASSWORD: root
-            MYSQL_DATABASE: dolibarr
-        restart: always  # Indentation corrected
+            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+            MYSQL_DATABASE: ${MYSQL_DATABASE:-dolidb}
+            MYSQL_USER: ${MYSQL_USER:-dolidbuser}
+            MYSQL_PASSWORD: ${MYSQL_PASSWORD:-dolidbpass}
+
+        volumes:
+            - /home/dolibarr_mariadb:/var/lib/mysql
+
     web:
-        image: tuxgasy/dolibarr
+    	# Choose the version of image to install
+    	# dolibarr/dolibarr:latest (the latest stable version)
+    	# dolibarr/dolibarr:develop
+    	# dolibarr/dolibarr:x.y.z
+        image: dolibarr/dolibarr:latest
         environment:
-            DOLI_DB_HOST: mariadb
-            DOLI_DB_USER: root
-            DOLI_DB_PASSWORD: root
-            DOLI_DB_NAME: dolibarr
-            DOLI_URL_ROOT: 'http://0.0.0.0' #change the url to your liking befor using it
-            PHP_INI_DATE_TIMEZONE: 'Asia/Bahrain'
+            WWW_USER_ID: ${WWW_USER_ID:-1000}
+            WWW_GROUP_ID: ${WWW_GROUP_ID:-1000}
+            DOLI_DB_HOST: ${DOLI_DB_HOST:-mariadb}
+            DOLI_DB_NAME: ${DOLI_DB_NAME:-dolidb}
+            DOLI_DB_USER: ${DOLI_DB_USER:-dolidbuser}
+            DOLI_DB_PASSWORD: ${DOLI_DB_PASSWORD:-dolidbpass}
+            DOLI_URL_ROOT: "${DOLI_URL_ROOT:-http://localhost⁠}"
+            DOLI_ADMIN_LOGIN: "${DOLI_ADMIN_LOGIN:-admin}"
+            DOLI_ADMIN_PASSWORD: "${DOLI_ADMIN_PASSWORD:-admin}"
+            DOLI_CRON: ${DOLI_CRON:-0}
+            DOLI_INIT_DEMO: ${DOLI_INIT_DEMO:-0}
+            DOLI_COMPANY_NAME: ${DOLI_COMPANY_NAME:-MyBigCompany}
+
         ports:
-            - "8070:80"
+            - "80:80"
         links:
             - mariadb
-        restart: always  # This ensures the 'web' service also restarts always
+        volumes:
+            - /home/dolibarr_documents:/var/www/documents
+            - /home/dolibarr_custom:/var/www/html/custom
