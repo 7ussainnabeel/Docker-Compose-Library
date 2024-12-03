@@ -1,9 +1,5 @@
 version: "3"
 
-# Edit this file then run 
-# docker-compose up -d
-# docker-compose logs
-
 services:
     mariadb:
         image: mariadb:latest
@@ -17,10 +13,6 @@ services:
             - /home/dolibarr_mariadb:/var/lib/mysql
 
     web:
-    	# Choose the version of image to install
-    	# dolibarr/dolibarr:latest (the latest stable version)
-    	# dolibarr/dolibarr:develop
-    	# dolibarr/dolibarr:x.y.z
         image: dolibarr/dolibarr:latest
         environment:
             WWW_USER_ID: ${WWW_USER_ID:-1000}
