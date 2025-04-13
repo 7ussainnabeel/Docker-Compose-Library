@@ -1,207 +1,144 @@
-<h1 align=“center">This Project is a Docker Compose Library</h1>
-
-<p align="center">
-<b><i>Comprehensive, Docker-Compose files of open-source softwares used in businesses and home labs</I></b>
-<br/>
-<b></b>
-
-</p>
-
----
-## About
-
-The Docker-Compose Library is a curated collection of ready-to-use and continuously updated open-source applications. By leveraging Docker-Compose, this library simplifies the deployment and management of various applications, making it easier for developers and system administrators to set up and run complex software environments.
+# Docker Compose Library
 
 ## Description
-This repository contains a collection of Docker-Compose files for various open-source applications, including:
-- **Productivity Tools**: Nextcloud, OnlyOffice, Collabora Online, etc.
-- **Development Tools**: GitLab, Jenkins, SonarQube, etc.
-- **Security Tools**: OWASP ZAP, Burp Suite, etc.
-- **Monitoring and Logging Tools**: Prometheus, Grafana, ELK Stack, etc.
-- **Database Management Systems**: MySQL, PostgreSQL, MongoDB, etc.
-- **Web Servers and Proxies**: Nginx, Apache, Traefik, etc.
-- **Virtualization and Orchestration Tools**: Docker Swarm, Kubernetes, etc.
-- **Other Tools**: FileBrowser, Portainer, etc.
+The Docker Compose Library is a curated collection of ready-to-use and continuously updated open-source applications. By leveraging Docker Compose, this library simplifies the deployment and management of various applications, making it easier for developers and system administrators to set up and run complex software environments.
 
-This project provides a diverse set of Docker-Compose files, each pre-configured for a specific application. It caters to a wide range of needs, from admin panels and CMS to databases and machine learning tools. The library is designed to be user-friendly, making it accessible even to those who are new to Docker.
+## How to Use
 
-## Installation
+### Quick Start
+1. Clone this repository:
+```bash
+git clone https://github.com/7ussainnabeel/Docker-Compose-Library.git
+```
 
-- Just, Clone this repository -
-  ```
-  git clone https://github.com/7ussainnabeel/Docker-Compose-Library.git
-  ```
+2. Navigate to the cloned directory:
+```bash
+cd Docker-Compose-Library
+```
 
-- Now go to cloned directory -
-  ```
-  $ cd Docker-Compose-Library
-  ```
-- Run the bash script
-    ```
-  $ bash startup.sh
-    ```
+3. Make the startup script executable and run it:
+```bash
+chmod +x startup.sh
+./startup.sh
+```
+
 ## Deployment
 
-- Choose a Folder
+1. Choose a Folder:
+   - The script will present a list of available applications
+   - Select the number corresponding to your desired application
 
-    Choose the folder number corresponding to the desired application
+2. Automatic Deployment:
+   - The startup script will handle all deployment steps automatically
+   - Typical deployment takes 5-10 minutes
 
-- Bash script will do the magic
+3. Verify Deployment:
+   - After completion, check running containers with:
+```bash
+sudo docker ps
+```
 
-    Run the script and wait (5-10 min) container will be ready to double check run the following
-    ```
-    sudo docker ps
-    ```
-- **NOTE.** Container may take more time depending on your machine processing speed.
+### Manual Deployment (Alternative)
+For manual control, you can directly run Docker Compose:
+```bash
+docker-compose -f <application-folder>/docker-compose.yml up -d
+```
 
-## Features
-
-* **Wide Range of Applications**: The library includes a diverse set of applications, catering to different needs and use cases. 
-* **Easy to Use**: Each application is containerized and configured with Docker-Compose, enabling quick and hassle-free deployments. 
-* **Continuous Updates**: The repository is regularly updated to include the latest versions and best practices for each application. 
-* **Community-Driven**: Contributions from the community are encouraged and welcomed, ensuring the library grows and evolves with user needs.
-
-
-## Applications list
+## Applications Overview
 
 ### Administration
-* Aurora-Admin-Panel  
-* dashy  
-* rancherv1  
-* traefik  
+- **Aurora-Admin-Panel**: Admin panel for managing applications.
+- **dashy**: Dashboard for monitoring services.
+- **rancherv1**: Container management platform.
+- **traefik**: Modern reverse proxy and load balancer.
+
+### Business Applications
+- **business-intelligence**: Business intelligence tools.
+- **dolibarr**: ERP and CRM software.
+- **microrealestate**: Real estate management application.
+- **opeprojects**: Project management tools.
 
 ### Communication
-* chat  
-* crewlink  
-* rocketchat  
-* teamspeak  
-
-### Collaboration
-* collaboration  
-* remotely  
-* nextcloud  
-* mykuma  
+- **chat**: Chat application.
+- **crewlink**: Voice chat application.
+- **mattermost**: Open-source messaging platform.
+- **openfire**: Real-time collaboration server.
+- **rocketchat**: Team collaboration platform.
+- **teamspeak**: Voice communication software.
 
 ### Content Management
-* blog  
-* cms  
-* docuseal  
-* rainloop  
-* wiki  
-* wordpress  
+- **blog**: Blogging platform.
+- **cms**: Content management systems (Drupal, Joomla, WordPress).
+- **docuseal**: Document management system.
+- **rainloop**: Webmail client.
+- **wiki**: Wiki software (DokuWiki, MediaWiki).
+- **wordpress**: Popular content management system.
 
-### Customer Relationship Management (CRM)
-* crm  
-* dolibarr  
-* faveo  
-* freescout  
-* uvdesk  
-* zammad  
+### Customer Relationship Management
+- **crm**: Customer relationship management software.
+- **faveo**: Helpdesk and support ticketing system.
+- **freescout**: Open-source help desk.
+- **uvdesk**: Helpdesk solution.
+- **zammad**: Web-based support ticket system.
 
-### Development
-* development  
-* full_php_dev_stack  
-* gatling-grafana  
-* gitea  
-* gitlab  
-* jekyll-static-ssh-deploy  
-* scripts  
+### Databases
+- **database**: Database management systems (MongoDB, MySQL, PostgreSQL, Redis).
+
+### Development Tools
+- **development**: Development tools and environments.
+- **full_php_dev_stack**: Full PHP development stack.
+- **gatling-grafana**: Load testing and monitoring tools.
+- **gitea**: Self-hosted Git service.
+- **gitlab**: Git repository manager.
+- **jekyll-static-ssh-deploy**: Static site generator deployment.
+- **scripts**: Utility scripts for various tasks.
+
+### Document Management
+- **document**: Document management systems (Alfresco, CKAN, LogicalDOC, Nuxeo, Xibo).
 
 ### E-commerce
-* ecommerce  
-* invoice-ninja  
-* peppermint  
+- **ecommerce**: E-commerce platforms.
+- **invoice-ninja**: Invoicing and billing software.
+- **peppermint**: E-commerce solution.
 
-### Enterprise Resource Planning (ERP)
-* erp  
+### Help Desk & Ticketing
+- **trouble-ticketing**: Help desk and ticketing systems (osTicket, Redmine).
 
 ### Multimedia
-* multimedia  
-* sinusbot  
-* streaming  
+- **multimedia**: Multimedia applications.
+- **plex**: Media server.
+- **sinusbot**: Music bot for TeamSpeak.
+- **streaming**: Streaming applications (MistServer, Red5).
 
 ### Networking
-* openvpn  
-* nginx_proxy-and-companion  
+- **nginx_proxy-and-companion**: Nginx reverse proxy.
+- **openvpn**: OpenVPN server.
+- **varnish-cache**: HTTP accelerator.
+
+### Productivity
+- **nextcloud**: File sharing and collaboration platform.
+- **passbolt**: Open-source password manager.
+- **remotely**: Remote access tools.
 
 ### Project Management
-* business-intelligence  
-* project-management  
-* opeprojects  
-
-### Storage
-* database  
-* document  
-* storage  
-
-### Ticketing Systems
-* trouble-ticketing  
+- **project-management**: Project management tools.
 
 ### Security
-* passbolt  
-
-### Web Analytics
-* matomo  
-
-### Web Server
-* varnish-cache  
+- **matomo**: Web analytics platform.
+- **passbolt**: Password management solution.
 
 ### Games
-* ark-server  
-* crewlink
-## Support
+- **ark-server**: Game server for ARK: Survival Evolved.
 
-For support, [email](hnabeel3@gmail.com).
+### Platform-Specific Configurations
+#### Windows
+- **Windows Container**: 
+  - Pre-configured Docker environment for running Windows
+  - Includes RDP access (port 3389) and web interface (port 8006)
+  - Default disk size: 256GB
 
-The repo will remain 100% free and open source..
-It's thanks to the support of the community that this project is able to be freely available for everyone :)
-
-## Contributing
-
-Contributions are always welcome!
-
-Feel free to contribute by adding more applications or updating the existing ones. Make sure to:
-
-* Fork the repository
-* Create a new branch for your feature or fix
-* Open a pull request with a detailed description of the changes
-
-#### There is no infrastructure limitation
-
-You can run the docker container on any infrastructure as long as you have **docker.io** and **docker-compose** installed
-
-- **OS**: Red Hat, CentOS, Debian, Ubuntu or other's Linux OS ...
-- **Public Cloud**: More than 20+ major Cloud such as AWS, Azure, Google Cloud, Akamai ...
-- **Private Cloud**: KVM, VMware, VirtualBox, OpenStack ...
-- **ARCH**: Linux x86-64, ARM 32/64, x86/i686 ...
-
-## License
-
-The MIT License (MIT)
-Copyright (c) Hussain Dahi <hnabeel3@gmail.com> 
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-> **[Docker-Compose-Library](https://github.com/7ussainnabeel/Docker-Compose-Library.git)** is Licensed under [Hussain Dahi](https://github.com/7ussainnabeel/Docker-Compose-Library?tab=MIT-1-ov-file).
-
-
-## Contact
-For any questions or suggestions, please open an issue or contact the repository owner [Hussain Dahi](hnabeel3@gmail.com).
-<h2><p  align="center">
-Running your services in your home is fun :)</h2></p>
-<br/> 
-
-```
-  _    _                                                       _       _     
- | |  | |                                                     | |     | |    
- | |__| | ___  _   _ ___  ___   ___  ___ _ ____   _____ _ __  | | __ _| |__  
- |  __  |/ _ \| | | / __|/ _ \ / __|/ _ \ '__\ \ / / _ \ '__| | |/ _` | '_ \ 
- | |  | | (_) | |_| \__ \  __/ \__ \  __/ |   \ V /  __/ |    | | (_| | |_) |
- |_|  |_|\___/ \__,_|___/\___| |___/\___|_|    \_/ \___|_|    |_|\__,_|_.__/   
-
-```
+#### Mac OS
+- **Mac OS Container**: 
+  - Pre-configured Docker environment for running macOS
+  - Includes VNC access (port 5900) and web interface (port 8006)
+  - Default disk size: 256GB
