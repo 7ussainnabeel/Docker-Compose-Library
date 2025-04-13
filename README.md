@@ -56,7 +56,7 @@ docker-compose -f <application-folder>/docker-compose.yml up -d
 - **business-intelligence**: Business intelligence tools.
 - **dolibarr**: ERP and CRM software.
 - **microrealestate**: Real estate management application.
-- **opeprojects**: Project management tools.
+- **openprojects**: Project management tools.
 
 ### Communication
 - **chat**: Chat application.
