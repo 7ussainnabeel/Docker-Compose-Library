@@ -16,8 +16,7 @@ services:
       db:
         condition: service_healthy
     env_file:
-      - .env.docker
-
+      - .env
   db:
     image: mariadb:11.5.2
     restart: unless-stopped
