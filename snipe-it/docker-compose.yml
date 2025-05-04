@@ -1,5 +1,7 @@
 # Compose file for production.
 
+version: '2.4'
+
 volumes:
   db_data:
   storage:
