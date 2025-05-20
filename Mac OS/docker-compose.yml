@@ -7,7 +7,7 @@ services:
       DISK_SIZE: "256G"
       ARGUMENTS: "-device usb-host,vendorid=0x1234,productid=0x1234"
     devices:
-      # - /dev/kvm           # Commented out: KVM not supported on this CPU
+      - /dev/kvm
       - /dev/net/tun
       - /dev/bus/usb
     cap_add:
