@@ -1,0 +1,55 @@
+version: '2'
+
+services:
+    db:
+        container_name: kiwi_db
+        image: mariadb:latest
+        command:
+            --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+        volumes:
+            - db_data:/var/lib/mysql
+        restart: always
+        environment:
+            # checkov:skip=CKV_SECRET_6:Base64 High Entropy String
+            MYSQL_ROOT_PASSWORD: kiwi-1s-aw3s0m3
+            MYSQL_DATABASE: kiwi
+            MYSQL_USER: kiwi
+            MYSQL_PASSWORD: kiwi
+
+    web:
+        container_name: kiwi_web
+        depends_on:
+            - db
+        restart: always
+        image: pub.kiwitcms.eu/kiwitcms/kiwi:latest
+        ports:
+            - 80:8080
+            - 443:8443
+        volumes:
+            - uploads:/Kiwi/uploads:Z
+        environment:
+            KIWI_DB_HOST: db
+            KIWI_DB_PORT: 3306
+            KIWI_DB_NAME: kiwi
+            KIWI_DB_USER: kiwi
+            KIWI_DB_PASSWORD: kiwi
+        cap_drop:
+          - ALL
+
+    # this is used only for testing purposes
+    # Not needed for actual deployment!
+    proxy:
+        container_name: reverse_proxy
+        image: nginx
+        volumes:
+            - ./tests/nginx-proxy/nginx.conf:/etc/nginx/nginx.conf:Z
+            - ./tests/nginx-proxy/localhost.key:/etc/nginx/localhost.key:Z
+            - ./tests/nginx-proxy/localhost.crt:/etc/nginx/localhost.crt:Z
+        ports:
+            - 4343:8443
+        depends_on:
+            - web
+
+volumes:
+    db_data:
+    uploads:
