@@ -1,0 +1,257 @@
+services:
+  bazarr:
+    container_name: bazarr
+    image: ghcr.io/linuxserver/bazarr
+    volumes:
+      - /volume1/docker/bazarr:/config
+      - /volume1/data/media/movies:/movies
+      - /volume1/data/media/tv:/tv
+      - /volume1/data:/data
+    network_mode: bridge
+    ports:
+      - 6767:6767
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:bazarr
+    restart: always
+
+  code-server:
+    container_name: code-server
+    image: lscr.io/linuxserver/code-server
+    volumes:
+      - /volume1/docker/code-server:/config
+      - /volume1/docker/hass-config:/config/workspace
+      - /var/services/homes/matte/docker-compose:/config/docker-compose
+    network_mode: bridge
+    ports:
+      - 8443:8443
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - DEFAULT_WORKSPACE=/config/workspace
+    restart: always
+
+  eclipse-mosquitto:
+    container_name: eclipse-mosquitto
+    image: eclipse-mosquitto
+    volumes:
+      - /volume1/docker/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - /volume1/docker/mosquitto/config/mosquitto_passwd:/mosquitto/config/mosquitto_passwd
+      - /volume1/docker/mosquitto/data:/mosquitto/data
+      - /volume1/docker/mosquitto/log:/mosquitto/log
+    network_mode: bridge
+    ports:
+      - 1883:1883
+      - 9001:9001
+    restart: always
+
+  esphome:
+    container_name: esphome
+    image: ghcr.io/esphome/esphome:2022.8.3
+    volumes:
+      - /volume1/docker/esphome:/config
+      - /etc/localtime:/etc/localtime:ro
+    network_mode: host
+    privileged: true
+    restart: always
+
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    volumes:
+      - /volume1/docker/hass-config:/config
+      - /var/run/docker.sock:/var/run/docker.sock
+    network_mode: host
+    environment:
+      - TZ=${TZ}
+    privileged: true
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    restart: always
+
+  mariadb:
+    container_name: mariadb
+    image: mariadb
+    volumes:
+      - /volume1/docker/mariadb:/var/lib/mysql
+      - /etc/localtime:/etc/localtime:ro
+    network_mode: bridge
+    ports:
+      - 3306:3306
+    environment:
+      - MARIADB_DATABASE=homeassistant
+      - MARIADB_ROOT_PASSWORD=${MARIADB_PASSWORD}
+      - MARIADB_USER=homeassistant
+      - MARIADB_PASSWORD=${MARIADB_PASSWORD}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mariadb-admin ping -h localhost -u root --password=$$MARIADB_ROOT_PASSWORD",
+        ]
+    restart: always
+
+  plex:
+    container_name: plex
+    image: lscr.io/linuxserver/plex
+    volumes:
+      - /volume1/docker/plex/config:/config
+      - /volume1/data/media/tv:/tv
+      - /volume1/data/media/movies:/movies
+    network_mode: host
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - VERSION=docker
+    restart: always
+
+  prowlarr:
+    container_name: prowlarr
+    image: ghcr.io/linuxserver/prowlarr
+    volumes:
+      - /volume1/docker/prowlarr:/config
+    network_mode: bridge
+    ports:
+      - 9696:9696
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:prowlarr
+    restart: always
+
+  ps5-mqtt:
+    container_name: ps5-mqtt
+    image: ghcr.io/funkeyflo/ps5-mqtt/amd64
+    volumes:
+      - /volume1/docker/ps5-mqtt:/config
+    network_mode: host
+    environment:
+      - MQTT_HOST=${MQTT_HOST}
+      - MQTT_USERNAME=${MQTT_USERNAME}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+      - DEVICE_CHECK_INTERVAL=5000
+      - DEVICE_DISCOVERY_INTERVAL=60000
+      - INCLUDE_PS4_DEVICES=false
+      - FRONTEND_PORT=8645
+      - CREDENTIAL_STORAGE_PATH=/config/credentials.json
+      - TZ=${TZ}
+    entrypoint: /config/run.sh
+    restart: always
+
+  radarr:
+    container_name: radarr
+    image: lscr.io/linuxserver/radarr
+    volumes:
+      - /volume1/docker/radarr:/config
+      - /volume1/data/media/movies:/movies
+      - /volume1/data/downloads:/downloads
+      - /volume1/data:/data
+    network_mode: bridge
+    ports:
+      - 7878:7878
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:radarr
+    restart: always
+
+  sonarr:
+    container_name: sonarr
+    image: lscr.io/linuxserver/sonarr
+    volumes:
+      - /volume1/docker/sonarr:/config
+      - /volume1/data/media/tv:/tv
+      - /volume1/data/downloads:/downloads
+      - /volume1/data:/data
+    network_mode: bridge
+    ports:
+      - 8989:8989
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:sonarr
+    restart: always
+
+  transmission:
+    container_name: transmission
+    image: haugene/transmission-openvpn
+    volumes:
+      - /volume1/docker/transmission:/data
+      - /volume1/data/downloads:/downloads
+      - /etc/localtime:/etc/localtime:ro
+      - /volume1/docker/transmission/config.json:/opt/transmission-ui/flood-for-transmission/config.json
+    network_mode: bridge
+    ports:
+      - 9091:9091
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+    environment:
+      - OPENVPN_PROVIDER=${OVPN_PROVIDER}
+      - OPENVPN_CONFIG=${OVPN_CONFIG}
+      - OPENVPN_USERNAME=${OVPN_USERNAME}
+      - OPENVPN_PASSWORD=${OVPN_PASSWORD}
+      - OPENVPN_OPTS=--inactive 3600 --ping 10 --ping-exit 60
+      - LOCAL_NETWORK=192.168.1.0/24
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TRANSMISSION_DOWNLOAD_DIR=/downloads
+      - TRANSMISSION_INCOMPLETE_DIR_ENABLED="false"
+      - TRANSMISSION_WEB_UI=flood-for-transmission
+      - TRANSMISSION_PEX_ENABLED="true"
+      - TRANSMISSION_LPD_ENABLED="true"
+      - TRANSMISSION_DHT_ENABLED="true"
+    restart: always
+
+  transmission-openvpn-proxy:
+    container_name: transmission-openvpn-proxy
+    image: haugene/transmission-openvpn-proxy
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    network_mode: bridge
+    ports:
+      - 9092:8080
+    links:
+      - transmission
+    labels:
+      - com.centurylinklabs.watchtower.depends-on=transmission
+    depends_on:
+      - transmission
+    restart: always
+
+  watchtower:
+    container_name: watchtower
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+    network_mode: bridge
+    labels:
+      - watchtower
+    command: --cleanup --interval 1 --run-once
+
+  zigbee2mqtt:
+    container_name: zigbee2mqtt
+    image: koenkk/zigbee2mqtt
+    volumes:
+      - /volume1/docker/zigbee2mqtt:/app/data
+      - /run/udev:/run/udev:ro
+    network_mode: host
+    privileged: true
+    environment:
+      - TZ=${TZ}
+      - ZIGBEE2MQTT_CONFIG_MQTT_SERVER=mqtt://${MQTT_HOST}:1883
+      - ZIGBEE2MQTT_CONFIG_MQTT_USER=${MQTT_USERNAME}
+      - ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD=${MQTT_PASSWORD}
+    devices:
+      - /dev/ttyACM0:/dev/ttyACM0
+    restart: always
