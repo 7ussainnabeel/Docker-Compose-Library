@@ -1,0 +1,73 @@
+
+<div class="w-full flex justify-between flex-wrap">
+  <h1>Domain Valuation: Edit</h1>
+  @if (!loading) {
+    <button pButton label="Save" icon="pi pi-check" (click)="saveChanges()"></button>
+  }
+</div>
+
+<p class="text-surface-400">
+  Add or update the costings for each domain here.
+  The purchase price is the one-off fee you paid for the domain, the current
+  value is the estimated value of the domain now, the annual renewal cost is
+  the cost to renew the domain each year.
+</p>
+
+<p-table
+  #costingsTable
+  [value]="domains"
+  [loading]="loading"
+  styleClass="p-datatable-striped"
+>
+  <ng-template pTemplate="header">
+    <tr>
+      <th>Domain Name</th>
+      <th [pTooltip]="'The one-off fee you paid for the domain'">Purchase Price</th>
+      <th [pTooltip]="'The current sell-value of the domain'">Current Value</th>
+      <th [pTooltip]="'The annual cost to renew the domain'">Annual Renewal Cost</th>
+      <th [pTooltip]="'Weather or not the domain auto-renews'">Auto Renew</th>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-domain>
+    <tr>
+      <td>{{ domain.domain_name }}</td>
+      <td>
+        <p-inputNumber
+          mode="currency"
+          inputId="purchase-price"
+          [currency]="currency"
+          [locale]="locale"
+          [showButtons]="true" 
+          [(ngModel)]="domain.purchase_price"
+        />
+      </td>
+      <td>
+        <p-inputNumber
+          mode="currency"
+          inputId="sell-price"
+          [currency]="currency"
+          [locale]="locale"
+          [showButtons]="true" 
+          [(ngModel)]="domain.current_value"
+        />
+      </td>
+      <td>
+        <p-inputNumber
+          mode="currency"
+          inputId="renewal-price"
+          [currency]="currency"
+          [locale]="locale"
+          [showButtons]="true" 
+          [(ngModel)]="domain.renewal_cost"
+        />
+      </td>
+      <td>
+        <p-checkbox [(ngModel)]="domain.auto_renew" binary="true"></p-checkbox>
+      </td>
+    </tr>
+  </ng-template>
+</p-table>
+
+<div class="w-full flex justify-end">
+  <button pButton label="Save" icon="pi pi-check" (click)="saveChanges()" class="mt-4"></button>
+</div>

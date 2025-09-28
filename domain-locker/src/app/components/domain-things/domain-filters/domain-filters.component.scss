@@ -1,0 +1,8 @@
+::ng-deep .p-multiselect-panel {
+  .p-multiselect-header {
+    display: none;
+  }
+  .p-multiselect-items-wrapper {
+    max-height: 400px !important;
+  }
+}

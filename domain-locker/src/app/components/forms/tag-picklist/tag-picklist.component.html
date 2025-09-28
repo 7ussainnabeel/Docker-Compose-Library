@@ -1,0 +1,25 @@
+<div class="p-fluid">
+  <div class="field">
+    <p-pickList 
+      [source]="availableDomains" 
+      [target]="selectedDomains"
+      sourceHeader="Available Domains"
+      targetHeader="Selected Domains"
+      responsive="true" 
+      [filterBy]="'domain_name'"
+      [dragdrop]="true"
+      [showSourceControls]="true"
+      [showTargetControls]="true"
+      [sourceStyle]="{ height: '300px' }"
+      [targetStyle]="{ height: '300px' }"
+    >
+      <ng-template let-domain pTemplate="item">
+        <div>{{ domain.domain_name }}</div>
+      </ng-template>
+    </p-pickList>
+  </div>
+
+  <div class="flex justify-end">
+    <p-button label="Save Changes" icon="pi pi-check" (onClick)="saveDomainsForTag()"></p-button>
+  </div>
+</div>

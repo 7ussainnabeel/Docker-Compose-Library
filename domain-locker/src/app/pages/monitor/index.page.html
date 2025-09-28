@@ -1,0 +1,88 @@
+<h1 class="text-2xl my-3">Web Monitoring</h1>
+
+@if (!(monitorEnabled$ | async)) {
+  <app-feature-not-enabled feature="domainMonitor" />
+}
+
+<div class="monitor-container" *ngIf="monitorEnabled$ | async">
+  <div *ngIf="loading" class="loading-container">
+    <p>Loading domains...</p>
+  </div>
+
+  <div *ngIf="!loading && domainSummaries.length === 0">
+    <p>No domains available to monitor.</p>
+  </div>
+
+  <ul class="list-none p-0 m-0 flex flex-col gap-3" *ngIf="!loading && domainSummaries.length > 0">
+    <li *ngFor="let summary of domainSummaries" (click)="visitDomain(summary.domainName)" class="p-card py-2 px-3 flex gap-3 items-normal">
+      <a [routerLink]="['/monitor', summary.domainName]" class="flex gap-2 items-center no-underline min-w-48">
+        <app-domain-favicon [domain]="summary.domainName"></app-domain-favicon>
+        <h3 class="m-0 text-primary">{{ summary.domainName }}</h3>
+      </a>
+
+      <div class="flex flex-col justify-between min-w-40">
+        <span class="text-sm opacity-70">Uptime</span>
+        <span class="text-xl font-semibold pb-2 {{getUptimeColor(summary.uptimePercentage)}}">
+          @if (isNaN(summary.uptimePercentage)) {
+            N/A
+          } @else {
+            {{ summary.uptimePercentage.toFixed(0) }}%
+          }
+        </span>
+      </div>
+
+      <div class="flex flex-col justify-between min-w-80">
+        <span class="text-sm opacity-70 {{ !summary.sparklineData.length  ? 'line-through' : ''}}">Response Time</span>
+        <apx-chart
+          *ngIf="summary.sparklineData"
+          [series]="[{ data: summary.sparklineData }]"
+          [chart]="sparkLineConfig.chart"
+          [stroke]="{ curve: 'smooth', width: 2 }"
+          [colors]= "['var(--primary-color, #60a5fa)']"
+          [tooltip]="{ enabled: false }"
+        ></apx-chart>
+      </div>
+
+      <div class="flex flex-col justify-between min-w-40">
+        <span class="text-sm opacity-70">DNS Response</span>
+        <span class="text-xl font-semibold pb-2 {{getPerformanceColor(summary.avgDnsTime, 'dns')}}">
+          @if (isNaN(summary.avgDnsTime)) {
+            N/A
+          } @else {
+            {{ summary.avgDnsTime.toFixed(0) }}ms
+          }
+        </span>
+        
+      </div>
+      <div class="flex flex-col justify-between min-w-40">
+        <span class="text-sm opacity-70">SSL Handshake</span>
+        <span class="text-xl font-semibold pb-2 {{getPerformanceColor(summary.avgSslTime, 'ssl')}}">
+          @if (isNaN(summary.avgSslTime)) {
+            N/A
+          } @else {
+            {{ summary.avgSslTime.toFixed(0) }}ms
+          }
+        </span>
+      </div>
+
+      <div class="flex flex-col justify-between min-w-40">
+        <span class="text-sm opacity-70">Status Codes</span>
+        <apx-chart
+          *ngIf="summary.responseCodeSeries.length"
+          [series]="summary.responseCodeSeries"
+          [chart]="donutChartConfig.chart"
+          [labels]="summary.responseCodeLabels"
+          [colors]="summary.responseCodeColors"
+          [dataLabels]="{ enabled: false }"
+          [stroke]="{ show: false }"
+          [legend]="{ show: false }"
+          [labels]="[]"
+          [tooltip]="{
+            enabled: false
+          }"
+        />
+      </div>
+
+      </li>
+  </ul>
+</div>

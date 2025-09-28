@@ -1,0 +1,235 @@
+
+/* Create new variable, --surface-25 */
+:root {
+  --surface-25: rgba(0, 0, 0, 0.25);
+}
+
+/* Light mode surface-25 for each theme */
+[data-theme="lara-purple"][data-mode="light"] {
+  --surface-25: rgba(139, 92, 246, 0.08)
+}
+
+[data-theme="md-indigo"][data-mode="light"] {
+  --surface-25: rgba(63, 81, 181, 0.08); /* Indigo */
+}
+
+[data-theme="bootstrap-blue"][data-mode="light"] {
+  --surface-25: rgb(223, 224, 227);
+}
+
+[data-theme="lara-teal"][data-mode="light"] {
+  --surface-25: rgba(20, 184, 166, 0.08); /* Teal */
+}
+
+[data-theme="vela-orange"][data-mode="light"] {
+  --surface-25: rgba(255, 152, 0, 0.08); /* Orange */
+}
+
+[data-theme="arya-green"][data-mode="light"] {
+  --surface-25: rgba(76, 175, 80, 0.08); /* Green */
+}
+
+/* Dark mode surface-25 for each theme */
+[data-theme="lara-purple"][data-mode="dark"] {
+  --surface-25: #14131b5e;
+}
+
+[data-theme="md-indigo"][data-mode="dark"] {
+  --surface-25: #2a2a2a5e;
+}
+
+[data-theme="bootstrap-blue"][data-mode="dark"] {
+  --surface-25: #1c222a;
+}
+
+[data-theme="lara-teal"][data-mode="dark"] {
+  --surface-25: #14131b5e;
+}
+
+[data-theme="vela-orange"][data-mode="dark"] {
+  --surface-25: #151d2a;
+}
+
+[data-theme="arya-green"][data-mode="dark"] {
+  --surface-25: #2a2a2a5e;
+}
+
+.bg-surface-25 {
+  background-color: var(--surface-25);
+}
+
+
+/* Tailwind-like classes to use PrimeNG's color variables */
+/* Background color utilities */
+.bg-surface-ground {
+  background-color: var(--surface-ground);
+}
+.bg-surface-section {
+  background-color: var(--surface-section);
+}
+.bg-surface-card {
+  background-color: var(--surface-card);
+}
+.bg-surface-overlay {
+  background-color: var(--surface-overlay);
+}
+.bg-surface-border {
+  background-color: var(--surface-border);
+}
+.bg-surface-hover:hover {
+  background-color: var(--surface-hover);
+}
+.bg-primary {
+  background-color: var(--primary-color);
+}
+.bg-highlight {
+  background-color: var(--highlight-bg);
+}
+.hover:bg-highlight :hover {
+  background-color: var(--highlight-bg) !important;
+}
+.bg-mask {
+  background-color: var(--mask-bg);
+}
+
+/* Text color utilities */
+.text-surface-ground {
+  color: var(--surface-ground);
+}
+.text-surface-section {
+  color: var(--surface-section);
+}
+.text-surface-card {
+  color: var(--surface-card);
+}
+.text-surface-overlay {
+  color: var(--surface-overlay);
+}
+.text-surface-border {
+  color: var(--surface-border);
+}
+.text-primary {
+  color: var(--primary-color-text);
+}
+.text-highlight {
+  color: var(--highlight-text-color);
+}
+.text-primary-color {
+  color: var(--primary-color);
+}
+.text-secondary {
+  color: var(--text-secondary-color);
+}
+.text-muted {
+  color: var(--text-secondary-color);
+}
+.text-default {
+  color: var(--text-color) !important;
+}
+
+.text-surface-0 {
+  color: var(--surface-0);
+}
+.text-surface-50 {
+  color: var(--surface-50);
+}
+.text-surface-100 {
+  color: var(--surface-100);
+}
+.text-surface-200 {
+  color: var(--surface-200);
+}
+.text-surface-300 {
+  color: var(--surface-300);
+}
+.text-surface-400 {
+  color: var(--surface-400);
+}
+.text-surface-500 {
+  color: var(--surface-500);
+}
+.text-surface-600 {
+  color: var(--surface-600);
+}
+.text-surface-700 {
+  color: var(--surface-700);
+}
+.text-surface-800 {
+  color: var(--surface-800);
+}
+.text-surface-900 {
+  color: var(--surface-900);
+}
+
+.bg-surface-0 {
+  background-color: var(--surface-0);
+}
+.bg-surface-50 {
+  background-color: var(--surface-50);
+}
+.bg-surface-100 {
+  background-color: var(--surface-100);
+}
+.hover\:bg-surface-100:hover {
+  background-color: var(--surface-100) !important;
+}
+.bg-surface-200 {
+  background-color: var(--surface-200);
+}
+.bg-surface-300 {
+  background-color: var(--surface-300);
+}
+.bg-surface-400 {
+  background-color: var(--surface-400);
+}
+.bg-surface-500 {
+  background-color: var(--surface-500);
+}
+.bg-surface-600 {
+  background-color: var(--surface-600);
+}
+.bg-surface-700 {
+  background-color: var(--surface-700);
+}
+.bg-surface-800 {
+  background-color: var(--surface-800);
+}
+.bg-surface-900 {
+  background-color: var(--surface-900);
+}
+
+.fill-primary {
+  fill: var(--primary-color);
+}
+
+
+.border-surface-50 {
+  border-color: var(--surface-50);
+}
+.border-surface-100 {
+  border-color: var(--surface-100);
+}
+.border-surface-200 {
+  border-color: var(--surface-200);
+}
+.border-surface-300 {
+  border-color: var(--surface-300);
+}
+.border-surface-400 {
+  border-color: var(--surface-400);
+}
+.border-surface-500 {
+  border-color: var(--surface-500);
+}
+.border-surface-600 {
+  border-color: var(--surface-600);
+}
+.border-surface-700 {
+  border-color: var(--surface-700);
+}
+.border-surface-800 {
+  border-color: var(--surface-800);
+}
+.border-surface-900 {
+  border-color: var(--surface-900);
+}

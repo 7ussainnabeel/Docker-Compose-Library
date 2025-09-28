@@ -1,0 +1,28 @@
+@if (loading) {
+  <p-progressSpinner styleClass="flex mx-auto" />
+}
+
+<div *ngIf="!loading && accountIssues.length > 0" class="account-issues">
+  <p-messages *ngFor="let issue of accountIssues" [severity]="issue.type">
+    <ng-template pTemplate>
+      <div class="flex items-center w-full">
+        <i *ngIf="issue.type === 'success'" class="pi pi-check-circle"></i>
+        <i *ngIf="issue.type === 'info'" class="pi pi-info-circle"></i>
+        <i *ngIf="issue.type === 'warn'" class="pi pi-minus-circle"></i>
+        <i *ngIf="issue.type === 'error'" class="pi pi-times-circle"></i>
+        <i *ngIf="issue.type !== 'success' && issue.type !== 'info' && issue.type !== 'warn' && issue.type !== 'error'" class="pi pi-arrow-circle-right"></i>
+        <div class="ml-2 flex flex-1 items-center justify-between">
+          {{ issue.message }}
+          <button *ngIf="issue.action" pButton
+                  class="ml-2 min-w-52"
+                  styleClass="w-full"
+                    [severity]="issue.type === 'warn' ? 'warning' : issue.type === 'error' ? 'danger' : issue.type === 'info' ? 'info' : 'primary'"
+                  [label]="issue.action.label" 
+                  (click)="issue.action.callback ? issue.action.callback() : null" 
+                  [routerLink]="issue.action.route || null">
+          </button>
+        </div>
+      </div>
+    </ng-template>
+  </p-messages>
+</div>

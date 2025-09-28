@@ -1,0 +1,43 @@
+
+.domain-card {
+  .edit-button-container {
+    display: none;
+  }
+  &:hover {
+    .edit-button-container {
+      display: flex;
+    }
+  }
+  cursor: pointer;
+  border: 3px solid transparent;
+  transition: border 0.3s ease-in-out, transform 0.1s ease-in-out;
+  &:hover, &:focus {
+    border: 3px solid var(--primary-color);
+    transform: scale(1.05);
+  }
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.custom-pannel {
+  ::ng-deep .p-panel-header, ::ng-deep .p-toggleable-content .p-panel-content  {
+    padding: 0;
+    border: none;
+    plusicon, minusicon {
+      display: none;
+    }
+  }
+  ::ng-deep .p-panel-header-icon {
+    &::before {
+      font-family: 'PrimeIcons';
+      content: '\e902';
+      transition:cubic-bezier(1, 0, 0, 1) 0.2s;
+    }
+  }
+  ::ng-deep .p-panel-expanded {
+    .p-panel-header-icon::before {
+      transform: rotate(180deg);
+    }
+  }
+}

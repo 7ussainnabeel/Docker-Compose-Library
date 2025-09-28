@@ -1,0 +1,76 @@
+.gantt-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.gantt-header {
+  display: flex;
+  background-color: var(--surface-100);
+  padding: 0.5rem 0;
+  position: relative;
+}
+
+.gantt-year {
+  flex: 1;
+  text-align: center;
+  border-right: 1px solid var(--surface-200);
+  font-weight: bold;
+}
+
+.gantt-today-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--orange-500);
+  z-index: 1;
+}
+
+.gantt-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.gantt-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--surface-200);
+  height: 40px;
+  position: relative;
+}
+
+.gantt-domain-name {
+  width: 120px;
+  padding-right: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+
+  z-index: 1;
+  background: var(--surface-0);
+  opacity: 0.8;
+  width: fit-content;
+  border-radius: 0 8px 8px 0;
+}
+
+.gantt-bar {
+  position: absolute;
+  height: 20px;
+  border-radius: 4px;
+  display: flex;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.gantt-bar-past {
+  height: 100%;
+  opacity: 0.8;
+}
+
+.gantt-bar-future {
+  height: 100%;
+  opacity: 1;
+}
+

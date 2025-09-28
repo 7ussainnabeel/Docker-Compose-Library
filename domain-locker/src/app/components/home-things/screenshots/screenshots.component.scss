@@ -1,0 +1,42 @@
+
+:host ::ng-deep .p-element.custom-galleria.p-galleria.p-galleria-item-nav-onhover.p-galleria-thumbnails-bottom {
+  width: 100%;
+  max-width: 860px !important;
+  margin: 0 auto;
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+}
+
+:host ::ng-deep .p-galleria-thumbnail-wrapper {
+  height: 7rem;
+  div > p-galleriaitemslot > div > img {
+    height: 5rem !important;
+  }
+}
+
+:host ::ng-deep .p-galleria-thumbnail-items div {
+  overflow: hidden;
+}
+
+:host ::ng-deep p-galleriathumbnails {
+  @media (max-width: 768px) {
+    display: none;
+  }
+}
+
+:host ::ng-deep .custom-galleria-footer {
+  overflow: hidden;
+}
+
+:host ::ng-deep .p-galleria-item-nav.p-link {
+  align-items: center;
+  height: auto;
+  opacity: 0.8;
+  transition: all 0.3s ease;
+  &:hover {
+    opacity: 1;
+    background: none;
+    color: var(--primary-color);
+  }
+}
