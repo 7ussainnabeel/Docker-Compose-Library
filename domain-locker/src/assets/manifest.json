@@ -1,0 +1,85 @@
+{
+  "name": "Domain Locker",
+  "short_name": "DomainLocker",
+  "description": "Track, monitor, and manage your domains effortlessly with Domain Locker.",
+  "theme_color": "#a78bfa",
+  "background_color": "#111827",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "start_url": "/",
+  "scope": "/",
+  "scope_extensions": [ "https://demo.domain-locker.com/", "https://domain-locker.as93.net" ],
+  "icons": [
+    {
+      "src": "/icons/android-chrome-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/android-chrome-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/android-chrome-maskable-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["utilities", "productivity", "business"],
+  "lang": "en",
+  "dir": "auto",
+  "permissions": [
+    "notifications",
+    "push"
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/homepage.png",
+      "type": "image/png",
+      "sizes": "1832x1231"
+    },
+    {
+      "src": "/screenshots/stats.png",
+      "type": "image/png",
+      "sizes": "1832x1231"
+    },
+    {
+      "src": "/screenshots/monitor.png",
+      "type": "image/png",
+      "sizes": "1832x1231"
+    },
+    {
+      "src": "/screenshots/expirations.png",
+      "type": "image/png",
+      "sizes": "1832x1231"
+    },
+    {
+      "src": "/screenshots/assets.png",
+      "type": "image/png",
+      "sizes": "1832x1231"
+    }
+  ],
+  "prefer_related_applications": false, 
+  "share_target": {
+    "action": "/api/share-target",
+    "method": "POST",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "url": "link"
+    }
+  },
+  "features": {
+    "offline_mode": true,
+    "push_notifications": true,
+    "light_dark_mode": true,
+    "background_sync": true,
+    "installable": true,
+    "updates": "auto"
+  },
+  "author": "Alicia Sykes <as93.com>",
+  "version": "1.0.0"
+}

@@ -1,0 +1,12 @@
+::ng-deep .p-tabview-panels {
+  padding: 0;
+}
+
+::ng-deep .p-tabview-nav-link {
+  padding: 1.2rem 2.5rem;
+  margin-right: 0.5rem;
+}
+
+::ng-deep .p-tabview-panel, ::ng-deep .p-datatable-wrapper {
+  border-radius: 0.5rem;
+}

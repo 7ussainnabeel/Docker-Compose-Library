@@ -1,0 +1,36 @@
+
+::ng-deep .apexcharts-canvas {
+  .apexcharts-menu {
+    background: var(--surface-0);
+    color: var(--text-color);
+    border-color: var(--surface-200);
+  }
+  .apexcharts-text {
+    fill: var(--text-color);
+    font-weight: 500;
+  }
+  .apexcharts-legend-text {
+    color: var(--text-color) !important;
+  }
+  .apexcharts-gridline {
+    stroke: var(--surface-200);
+  }
+  .apexcharts-grid-borders line {
+    stroke: var(--surface-200);
+  }
+  .apexcharts-bar-area {
+    stroke: var(--surface-200);
+  }
+  .apexcharts-tooltip {
+    background: var(--surface-100) !important;
+    border-color: var(--surface-200) !important;
+    .apexcharts-tooltip-title {
+      color: var(--text-color);
+      background: var(--surface-200) !important;
+    }
+    .apexcharts-tooltip-series-group {
+      color: var(--text-color);
+      background: var(--surface-200);
+    }
+  }
+}

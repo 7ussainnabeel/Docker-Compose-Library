@@ -1,0 +1,76 @@
+<div class="flex flex-col gap-4">
+  <!-- Tag Name -->
+  <div class="field-row">
+    <label for="tag-name">
+      Tag Name
+      <small>Name of the tag (Required)</small>
+    </label>
+    <input 
+        pInputText 
+        id="tag-name" 
+        class="w-1/2"
+        [(ngModel)]="tag.name" 
+        required />
+  </div>
+
+  <!-- Tag Color (Radio Buttons) -->
+  <div class="field-row">
+    <label for="tag-color">
+      Tag Color
+    </label>
+    <div class="flex gap-4 flex-wrap w-1/2">
+      <div *ngFor="let color of tagColors" class="flex gap-1" [title]="color">
+        <p-radioButton 
+          name="color" 
+          [inputId]="color" 
+          [value]="color" 
+          [(ngModel)]="tag.color" />
+        <label [for]="color">
+          <div [style]="{ 'background-color': 'var(--'+color+'-400)', 'border': '2px solid var(--'+color+'-800)' }" class="rounded-full w-14 h-6"></div>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tag Icon (Text Input with Validation) -->
+  <div class="field-row">
+    <label for="tag-icon">
+      Tag Icon
+      <small>Choose an icon from Iconify</small>
+    </label>
+    <div class="flex flex-col w-1/2">
+      <input 
+        pInputText 
+        id="tag-icon" 
+        class="w-full"
+        placeholder="e.g. game-icons/dinosaur-rex"
+        [(ngModel)]="tag.icon"
+        pattern="[a-z]+/[a-z]+" />
+      <small  class="p-info opacity-70">
+        Choose an icon from <a class="primary" href="https://icon-sets.iconify.design/" target="_blank">iconify.design</a>
+        and specify in the format of [icon-pack]/[icon-name]. E.g. mdi/penguin
+      </small>
+    </div>
+  </div>
+
+  <!-- Tag Notes (Optional Text Area) -->
+  <div class="field-row">
+    <label for="tag-notes">
+      Notes
+      <small>Tag description, or additional notes</small>
+    </label>
+    <textarea 
+      id="tag-notes"
+      rows="3"
+      pInputTextarea 
+      [autoResize]="true"
+      class="w-1/2 h-auto"
+      [(ngModel)]="tag.description"
+      maxlength="255"></textarea>
+  </div>
+
+  <!-- Save Button -->
+  <div class="flex justify-end">
+    <p-button label="Save" icon="pi pi-check" (onClick)="saveTag()" />
+  </div>
+</div>

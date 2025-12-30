@@ -1,0 +1,136 @@
+project_id = "domain-locker-dev" # aka admdzkssuivrztrvzinh
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 250
+
+[api.tls]
+enabled = false
+
+[db]
+port = 54322 # Local database
+shadow_port = 54320 # For db diff, to init the shadow database
+major_version = 15 # Local and remote must be same. Run `SHOW server_version;`
+
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[realtime]
+enabled = true
+ip_version = "IPv4"
+max_header_length = 4096
+
+# Configure web UI
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+openai_api_key = "env(OPENAI_API_KEY)"
+
+# Email testing server, for local development
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[storage.image_transformation]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "https://demo.domain-locker.com"
+additional_redirect_urls = [
+  "http://localhost:5173/auth-callback",
+  "https://domain-locker.com/auth-callback",
+  "https://demo.domain-locker.com/auth-callback",
+]
+jwt_expiry = 3600 # How long tokens valid for in seconds
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+
+
+# Use a production-ready SMTP server
+# [auth.email.smtp]
+# host = "smtp.sendgrid.net"
+# port = 587
+# user = "apikey"
+# pass = "env(SENDGRID_API_KEY)"
+# admin_email = "admin@email.com"
+# sender_name = "Admin"
+
+# Uncomment to customize email template
+# [auth.email.template.invite]
+# subject = "You have been invited"
+# content_path = "./supabase/templates/invite.html"
+
+[auth.sms]
+enable_signup = false # Set to true to enable SMS signups
+enable_confirmations = true
+template = "Welcome to Domain Locker. Your code is {{ .Code }} 🤗."
+max_frequency = "20s"
+
+# Configure Twilio SMS provider
+[auth.sms.twilio]
+enabled = false
+account_sid = ""
+message_service_sid = ""
+auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
+
+[auth.mfa]
+max_enrolled_factors = 6
+
+# Control use of MFA via App Authenticator (TOTP)
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true # Require email confirmation for new signups
+double_confirm_changes = true # Require email confirmation for email changes
+secure_password_change = false # Users need to reauthenticate to change password
+max_frequency = "5s" # Min time before can send another signup confirm / password reset email
+
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+redirect_uri = "https://demo.domain-locker.com/auth/callback"
+url = "https://accounts.google.com"
+
+[auth.external.facebook]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_FACEBOOK_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_FACEBOOK_SECRET)"
+redirect_uri = "https://demo.domain-locker.com/auth/callback"
+url = "https://www.facebook.com/v15.0/dialog/oauth"
+
+[auth.external.github]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GITHUB_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GITHUB_SECRET)"
+redirect_uri = "https://demo.domain-locker.com/auth/callback"
+url = "https://github.com/login/oauth/authorize"
+
+[edge_runtime]
+enabled = true
+policy = "oneshot"
+inspector_port = 8083
+
+[analytics]
+enabled = true
+port = 54327
+backend = "postgres"

@@ -1,0 +1,63 @@
+
+<div class="mt-2 mb-4 flex justify-between align-items-center">
+  <h1 class="m-0">Tags</h1>
+  <p-button (onClick)="showAddTagDialog()" label="Add new Tag" icon="pi pi-plus" />
+</div>
+
+<p-table [value]="tags" [loading]="loading" styleClass="p-datatable-striped">
+  <ng-template pTemplate="header">
+    <tr>
+      <th>Tag Name</th>
+      <th>Description</th>
+      <th>Domain Count</th>
+      <th class="text-center">Actions</th>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-tag>
+    <tr class="hover:bg-highlight">
+      <td class="border-l-4 border-l-{{tag.color}}-400">
+        <a
+          [routerLink]="['/assets/tags', tag.name]"
+          class="text-{{ tag.color || 'primary'}}-400 flex gap-1 align-items-center no-underline text-lg capitalize"
+        >
+          <div
+            *ngIf="tag.icon"
+            class="tag-icon larger"
+            style="mask-image: url('https://api.iconify.design/{{tag.icon}}.svg');"></div>
+          {{ tag.name }}
+        </a>
+      </td>
+      <td>
+        <span class="italic truncate">
+        {{ tag.description }}
+        </span>
+      </td>
+      <td>
+        {{ tag.domainCount }}
+      </td>
+      <td class="flex gap-2 justify-end">
+        <a [routerLink]="'/assets/tags/'+tag.name">
+          <p-button size="small" label="View" icon="pi pi-eye" styleClass="py-2 px-2" />
+        </a>
+        <a [routerLink]="'/assets/tags/'+tag.name+'/edit'">
+          <p-button size="small" label="Edit" icon="pi pi-pencil" styleClass="py-2 px-2" severity="info" />
+        </a>
+        <a [routerLink]="'/assets/tags/'+tag.name+'/add-domains'">
+          <p-button size="small" label="Add Domains" icon="pi pi-check-square" styleClass="py-2 px-2" severity="success" />
+        </a>
+          <p-button size="small" label="Delete" icon="pi pi-trash" styleClass="py-2 px-2" severity="danger" (onClick)="deleteTag(tag)" />
+      </td>
+    </tr>
+  </ng-template>
+</p-table>
+
+<p-dialog 
+    header="Create new Tag" 
+    [modal]="true"
+    [(visible)]="addTagDialogOpen" 
+    [style]="{ width: '50rem' }" 
+    [breakpoints]="{ '1199px': '75vw', '575px': '90vw' }" 
+    [maximizable]="true">
+    <app-tag-editor [isAddNew]="true" ($afterSave)="afterAddNewTag()" />
+</p-dialog>
+

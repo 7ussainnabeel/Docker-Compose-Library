@@ -1,0 +1,29 @@
+
+/* Used for animating elements into view */
+.fadeIn {
+  animation: fadeInUp 0.5s forwards;
+}
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.fadeOut {
+  animation: fadeOutDown 0.3s forwards;
+}
+@keyframes fadeOutDown {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}

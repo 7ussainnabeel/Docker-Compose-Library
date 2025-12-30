@@ -1,0 +1,12 @@
+<div *ngIf="dataLoaded; else loading">
+  <apx-chart
+    [series]="chartOptions?.series"
+    [chart]="chartOptions?.chart"
+    [xaxis]="chartOptions?.xaxis"
+    [yaxis]="chartOptions?.yaxis"
+    [tooltip]="chartOptions?.tooltip"
+  ></apx-chart>
+</div>
+<ng-template #loading>
+  <p>Loading domain valuation data...</p>
+</ng-template>

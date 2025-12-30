@@ -1,0 +1,102 @@
+@import 'tailwindcss/base';
+
+@import 'primeng/resources/primeng.min.css';
+@import 'primeicons/primeicons.css';
+@import 'primeng/resources/themes/lara-dark-purple/theme.css' (prefers-color-scheme: dark);
+@import 'primeng/resources/themes/lara-light-purple/theme.css' (prefers-color-scheme: light);
+@import 'primeflex/primeflex.css';
+
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@import './app/styles/anim.css';
+@import './app/styles/a11y.css';
+@import './app/styles/tw-extras.css';
+@import './app/styles/masonry.css';
+
+:root {
+  --body-font: Inter, Avenir, Helvetica, Arial, sans-serif;
+  --heading-font: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-family: var(--body-font);
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+  color-scheme: light dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--body-font);
+  background-color: var(--surface-ground);
+  color: var(--text-color);
+  padding: 0;
+  margin: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--heading-font);
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 2.5rem;
+}
+
+.p-component {
+  font-family: inherit;
+}
+
+.p-progress-spinner-circle {
+  stroke: var(--primary-color) !important;
+}
+
+.apexcharts-canvas.apexchartsregistrarPieChart {
+  margin: 0 auto;
+}
+
+/* Main content container for the app router */
+.content-container {
+  padding: 2rem;
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+  flex: 1;
+  &.full {
+    width: 98vw;
+    padding: 0;
+    display: block;
+    height: 100%;
+    min-height: 87vh;
+  }
+}
+
+/* Highlight color */
+::selection {
+  background-color: var(--primary-color);
+  color: var(--surface-0);
+}
+
+#main-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100vh;
+}
+
+.main-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.content-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}

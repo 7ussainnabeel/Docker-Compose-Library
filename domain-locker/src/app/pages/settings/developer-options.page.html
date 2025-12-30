@@ -1,0 +1,184 @@
+<h2 class="text-2xl font-semibold my-2">Developer Options</h2>
+<p class="italic text-lg opacity-70 m-0">
+  Access and manage your domain locker data programmatically
+</p>
+
+<p-messages severity="secondary">
+  <ng-template pTemplate>
+    <p class="m-0">
+      Developer options is still under development, follow the project on GitHub for updates
+    </p>
+  </ng-template>
+</p-messages>
+
+<div [formGroup]="form" class="flex flex-col gap-4 mt-4 relative">
+  <div class="absolute bg-surface-50 h-full w-full z-10 opacity-25 cursor-not-allowed"></div>
+  <div class="p-card p-4">
+    <h3>Manage API Keys</h3>
+    <h4 class="mt-4 mb-2">Generate a new API key</h4>
+    <form class="flex gap-4 justify-between items-end">
+      <div class="p-field flex flex-col flex-1">
+        <input pInputText id="apiKeyName" type="text" placeholder="Enter a name for your API key" />
+      </div>
+      <button type="button" pButton label="Save and Generate"></button>
+    </form>
+    <h4 class="mt-4 mb-2">Active Keys</h4>
+    <div>
+      <p class="flex mx-auto my-2 opacity-70 italic">No keys setup yet</p>
+    </div>
+  </div>
+
+  <div class="p-card p-4">
+    <div class="flex justify-between w-full items-center">
+      <h3 class="font-semibold text-lg m-0">REST API</h3>
+      <div class="flex gap-2">
+        <p-button
+          label="API Documentation"
+          icon="pi pi-external-link"
+          styleClass="px-3 py-2"
+          severity="secondary"
+        ></p-button>
+        <p-toggleButton
+          formControlName="restApi"
+          onLabel="Enabled"
+          offLabel="Disabled"
+          styleClass="px-3 py-2"
+          [onIcon]="'pi pi-check-circle'"
+          [offIcon]="'pi pi-minus-circle'"
+        />
+      </div>
+    </div>
+      <p class="opacity-85 m-0 mt-2">
+        Enable the REST API to get read-access to your data programmatically via
+        HTTP requests, or to integrate with other services.
+      </p>
+  </div>
+
+  <div class="p-card p-4">
+    <div class="flex justify-between w-full items-center">
+      <h3 class="font-semibold text-lg m-0">GraphQL API</h3>
+      <div class="flex gap-2">
+        <p-button
+          label="GraphQL Spec"
+          icon="pi pi-external-link"
+          styleClass="px-3 py-2"
+          severity="secondary"
+        ></p-button>
+        <p-toggleButton
+          formControlName="graphQl"
+          onLabel="Enabled"
+          offLabel="Disabled"
+          styleClass="px-3 py-2"
+          [onIcon]="'pi pi-check-circle'"
+          [offIcon]="'pi pi-minus-circle'"
+        />
+      </div>
+    </div>
+      <p class="opacity-85 m-0 mt-2">
+        Enable the GraphQL API to query your data with a powerful and flexible GraphQL API
+      </p>
+  </div>
+
+  <div class="p-card p-4">
+    <div class="flex justify-between w-full items-center">
+      <h3 class="font-semibold text-lg m-0">Prometheus Exporter</h3>
+      <div class="flex gap-2">
+        <p-button
+          label="Exporter Docs"
+          icon="pi pi-external-link"
+          styleClass="px-3 py-2"
+          severity="secondary"
+        ></p-button>
+        <p-toggleButton
+          formControlName="prometheus"
+          onLabel="Enabled"
+          offLabel="Disabled"
+          styleClass="px-3 py-2"
+          [onIcon]="'pi pi-check-circle'"
+          [offIcon]="'pi pi-minus-circle'"
+        />
+      </div>
+    </div>
+      <p class="opacity-85 m-0 mt-2">
+        Enable the Prometheus Exporter to expose metrics about your domain names
+        and their status, to be consumed by Prometheus or other monitoring tools.
+      </p>
+  </div>
+
+  <div class="p-card p-4">
+    <div class="flex justify-between w-full items-center">
+      <h3 class="font-semibold text-lg m-0">Expiry Calendar</h3>
+      <div class="flex gap-2">
+        <p-button
+          label="iCal Docs"
+          icon="pi pi-external-link"
+          styleClass="px-3 py-2"
+          severity="secondary"
+        ></p-button>
+        <p-toggleButton
+          formControlName="prometheus"
+          onLabel="Enabled"
+          offLabel="Disabled"
+          styleClass="px-3 py-2"
+          [onIcon]="'pi pi-check-circle'"
+          [offIcon]="'pi pi-minus-circle'"
+        />
+      </div>
+    </div>
+      <p class="opacity-85 m-0 mt-2">
+        Subscribe to the iCal feed to have your domain names' expiry dates in your calendar
+      </p>
+  </div>
+
+  <div class="p-card p-4">
+    <div class="flex justify-between w-full items-center">
+      <h3 class="font-semibold text-lg m-0">Domain Updates RSS Feed</h3>
+      <div class="flex gap-2">
+        <p-button
+          label="RSS Docs"
+          icon="pi pi-external-link"
+          styleClass="px-3 py-2"
+          severity="secondary"
+        ></p-button>
+        <p-toggleButton
+          formControlName="rssFeed"
+          onLabel="Enabled"
+          offLabel="Disabled"
+          styleClass="px-3 py-2"
+          [onIcon]="'pi pi-check-circle'"
+          [offIcon]="'pi pi-minus-circle'"
+        />
+      </div>
+    </div>
+      <p class="opacity-85 m-0 mt-2">
+        Enable the RSS Feed to get updates about your domain names and their status
+        in your favorite RSS reader.
+      </p>
+  </div>
+  <div class="p-card p-4">
+    <div class="flex justify-between w-full items-center">
+      <h3 class="font-semibold text-lg m-0">Embeddable Widgets</h3>
+      <div class="flex gap-2">
+        <p-button
+          label="Widget Docs"
+          icon="pi pi-external-link"
+          styleClass="px-3 py-2"
+          severity="secondary"
+        ></p-button>
+        <p-toggleButton
+          formControlName="rssFeed"
+          onLabel="Enabled"
+          offLabel="Disabled"
+          styleClass="px-3 py-2"
+          [onIcon]="'pi pi-check-circle'"
+          [offIcon]="'pi pi-minus-circle'"
+        />
+      </div>
+    </div>
+      <p class="opacity-85 m-0 mt-2">
+        Embed summaries of domain names, statuses, changes and charts within your dashboard,
+        a website or any third-party application.
+      </p>
+  </div>
+</div>
+

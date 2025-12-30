@@ -1,0 +1,27 @@
+
+
+/* Accessibility Options */
+.a11y_reduced-motion {
+  animation: none;
+  transition: none;
+}
+.a11y_high-contrast {
+  filter: contrast(1.5) saturate(2.5);
+  .p-card {
+    border: 1px solid var(--primary-color);
+  }
+}
+.a11y_large-type {
+  font-size: 18px;
+}
+.a11y_grayscale {
+  filter: grayscale(1);
+}
+.a11y_remove-icons {
+  svg, .pi {
+    display: none;
+  }
+}
+.a11y_no-blue-light {
+  filter: sepia(100%) hue-rotate(-30deg) saturate(200%);
+}

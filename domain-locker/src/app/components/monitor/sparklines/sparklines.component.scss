@@ -1,0 +1,81 @@
+
+::ng-deep apx-chart {
+  &:not(.advanced-mode) .apexcharts-canvas {
+    .apexcharts-toolbar {
+      opacity: 0.2;
+      transition: opacity 0.25s ease-in-out, opacity 1s 0.25s ease-in-out;
+    }
+    .apexcharts-yaxis {
+      opacity: 0;
+      transition: opacity 0.25s ease-in-out;
+    }
+    .apexcharts-gridline {
+      opacity: 0 !important;
+      transition: opacity 0.25s ease-in-out;
+      stroke: var(--surface-200);
+    }
+  }
+  .apexcharts-canvas {
+    .apexcharts-menu {
+      background: var(--surface-0);
+      color: var(--text-color);
+      border-color: var(--surface-200);
+    }
+
+    .apexcharts-text {
+      fill: var(--text-color);
+      opacity: 0.7;
+      font-weight: 500;
+    }
+    .apexcharts-legend-text {
+      color: var(--text-color) !important;
+    }
+    .apexcharts-gridline {
+      transition: opacity 0.25s ease-in-out;
+      stroke: var(--surface-200);
+    }
+    .apexcharts-grid-borders line {
+      stroke: var(--surface-200);
+    }
+    .apexcharts-bar-area {
+      stroke: var(--surface-200);
+    }
+    .apexcharts-tooltip {
+      opacity: 0 !important;
+      transition: all 0.15s ease;
+      background: var(--surface-100) !important;
+      border-color: var(--surface-200) !important;
+      .apexcharts-tooltip-title {
+        color: var(--text-color);
+        background: var(--surface-200) !important;
+      }
+      .apexcharts-tooltip-series-group {
+        color: var(--text-color);
+        background: var(--surface-200);
+      }
+    }
+    .apexcharts-datalabels {
+      .apexcharts-data-labels {
+        opacity: 0.7;
+      }
+      &:hover .apexcharts-data-labels {
+        opacity: 1;
+      }
+    }
+    &:hover {
+      .apexcharts-yaxis {
+        opacity: 1;
+      }
+      .apexcharts-tooltip {
+        transform: scale(0.8) translateY(-42px);
+        opacity: 0.8 !important;
+      }
+      .apexcharts-gridline {
+        opacity: 0.8 !important;
+      }
+      .apexcharts-toolbar {
+        opacity: 0.8 !important;
+      }
+    }
+  }
+}

@@ -1,0 +1,125 @@
+
+<!-- Unauthenticated homepage -->
+@if (!isAuthenticated) {
+  <div
+    class="flex flex-col gap-2 duration-200 transition-all {{ loading ? 'opacity-80' : 'opacity-100' }}">
+    <app-hero />
+    <p-divider />
+    <h3 class="mt-2 mb-0 text-3xl">{{ 'HOME.FEATURES' | translate }}</h3>
+    <p class="m-0 italic opacity-80 text-lg">{{ 'HOME.DESCRIPTION' | translate }}</p>
+    <app-feature-grid class="my-4" />
+    <p-divider />
+    <h3 class="mt-2 mb-0 text-3xl">{{ 'HOME.PRICING' | translate }}</h3>
+    <app-pricing-cards class="w-full" />
+    <p-divider />
+    <h3 class="mt-2 mb-0 text-3xl">{{ 'HOME.DEMO_TITLE' | translate }}</h3>
+    <app-demo />
+    <app-feature-carousel class="mt-3"/>
+    <p-divider />
+    <h3 class="mt-2 mb-0 text-3xl">{{ 'HOME.DOCS_TITLE' | translate }}</h3>
+    <about-links />
+    <p-divider />
+    <app-cta />
+  </div>
+}
+
+<!-- Authenticated homepage -->
+@if (isAuthenticated) {
+  <app-demo-welcome *ngIf="isDemoInstance" [isDemoInstance]="true" />
+  <app-demo-welcome *ngIf="isDevInstance" [isDevInstance]="true" />
+
+  <loading *ngIf="loading" [loadingTitle]="'HOME.LOADING_TITLE' | translate" [loadingDescription]="'HOME.LOADING_DESCRIPTION' | translate" />
+
+  @if (!loading && domains.length === 0) {
+    <welcome />
+  } @else if (!loading) {
+    <h2 class="my-4 block">{{ 'HOME.SUBHEADINGS.DASHBOARD' | translate }}</h2>
+    <div class="p-card p-4" pAnimateOnScroll enterClass="fadeIn" leaveClass="fadeOut">
+      <h4 class="mt-0 mb-4">{{ 'HOME.UPCOMING_EXPIRATIONS' | translate }}</h4>
+      <app-domain-expiration-bar />
+    </div>
+    @if (showInsights) {
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative my-4 mx-0.5">
+        <div class="p-card p-4">
+          <h4>{{ 'HOME.DOMAIN_PROVIDERS' | translate }}</h4>
+          <div class="w-full">
+            <app-domain-pie-charts />
+          </div>
+        </div>
+        <div class="p-card p-4">
+          <h4>{{ 'HOME.SECURITY_PROFILE' | translate }}</h4>
+          <app-epp-status-chart />
+        </div>
+        <div class="p-card p-4">
+          <h4>{{ 'HOME.HOST_GEOGRAPHY' | translate }}</h4>
+          <div class="w-full">
+            <app-host-map />
+          </div>
+        </div>
+        <div class="p-card p-4">
+          <h4>{{ 'HOME.TAGS' | translate }}</h4>
+          <div class="w-full">
+            <app-tag-cloud />
+          </div>
+        </div>
+        <div class="p-card p-4 col-span-2">
+          <h4>{{ 'HOME.REGISTRATION_TIMELINE' | translate }}</h4>
+          <div class="w-full max-h-96">
+            <p-scrollPanel [style]="{ width: '100%', height: '380px' }">
+              <app-domain-gantt-chart [groupDates]="true" />
+            </p-scrollPanel>
+          </div>
+        </div>
+      </div>
+      <p-button
+        [label]="'HOME.SHOW_MORE_INSIGHTS' | translate"
+        icon="pi pi-angle-double-right"
+        size="small"
+        [outlined]="true"
+        class="flex justify-end"
+        routerLink="/stats"
+      />
+    }
+    <p-divider align="center" (click)="toggleInsights()">
+      @if (!showInsights) {
+        <div class="flex gap-2 items-center px-3 py-2 cursor-pointer hover:text-primary">
+          <i class="pi pi-angle-double-down"></i>
+          <span>{{ 'HOME.EXPAND_STATS' | translate }}</span>
+          <i class="pi pi-angle-double-down"></i>
+        </div>
+      } @else {
+        <div class="flex gap-2 items-center px-1 py-1 cursor-pointer hover:text-primary text-xs opacity-70">
+          <i class="pi pi-angle-double-up"></i>
+          <span>{{ 'HOME.HIDE_STATS' | translate }}</span>
+          <i class="pi pi-angle-double-up"></i>
+        </div>
+      }
+    </p-divider>
+    <h2 class="my-4 block">{{ 'HOME.SUBHEADINGS.DOMAINS' | translate }}</h2>
+    <app-domain-view
+      *ngIf="!loading"
+      [domains]="domains"
+      [showFooter]="false"
+      [loading]="loading"
+      ($triggerReload)="newDomainAdded($event)"
+      pAnimateOnScroll enterClass="fadeIn" leaveClass="fadeOut"
+    />
+    <p-divider />
+    <h2 class="my-4 block">{{ 'HOME.SUBHEADINGS.CATEGORIES' | translate }}</h2>
+    <app-tag-grid pAnimateOnScroll enterClass="fadeIn" leaveClass="fadeOut" />
+    <p-divider />
+    <app-asset-list class="block m-2" pAnimateOnScroll enterClass="fadeIn" leaveClass="fadeOut" />
+    <p class="mx-0 mt-4 mb-2 float-right text-xs text-surface-300">
+      <a class="text-primary opacity-70" routerLink="/assets">{{ 'HOME.VIEW_ALL_ASSETS' | translate }}</a><br>
+    </p>
+  }
+
+  @if (isDemoInstance) {
+    <p-divider />
+    <app-cta [isDemo]="true" />
+  }
+
+  <p-divider />
+  <app-sponsor-message />
+}
+

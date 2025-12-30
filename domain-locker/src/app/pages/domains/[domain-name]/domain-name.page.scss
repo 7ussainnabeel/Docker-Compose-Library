@@ -1,0 +1,17 @@
+
+.row {
+  h5 {
+    color: var(--surface-400);
+    margin: 1rem 0 0.25rem 0;
+  }
+  p {
+    margin: 0;
+  }
+}
+
+.domain-perf-monitor {
+  ::ng-deep .p-card {
+    border: 2px solid var(--surface-100);
+    box-shadow: none !important;
+  }
+}

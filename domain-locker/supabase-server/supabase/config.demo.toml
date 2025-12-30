@@ -1,0 +1,69 @@
+project_id = "domain-locker-demo" # aka bistboghwtcxpsqtwwyk
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 250
+
+[api.tls]
+enabled = false
+
+[db]
+port = 54322 # Local database
+shadow_port = 54320 # For db diff, to init the shadow database
+# server_version;` on the remote database to check.
+major_version = 15 # Local and remote must be same. Run `SHOW server_version;`
+
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[realtime]
+enabled = true
+ip_version = "IPv4"
+max_header_length = 4096
+
+# Configure web UI
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+
+[auth]
+enabled = true
+site_url = "https://demo.domain-locker.com"
+additional_redirect_urls = [
+  "http://localhost:5173/auth-callback",
+  "https://domain-locker.com/auth-callback",
+  "https://demo.domain-locker.com/auth-callback",
+]
+jwt_expiry = 3600 # How long tokens valid for in seconds
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+double_confirm_changes = true
+secure_password_change = true
+max_frequency = "60s"
+
+[edge_runtime]
+enabled = true
+policy = "oneshot"
+inspector_port = 8083
+
+[analytics]
+enabled = true
+port = 54327
+backend = "postgres"
+
