@@ -31,14 +31,14 @@ services:
       - DB_POSTGRESDB_PASSWORD=n8npassword
 
       # n8n settings
-      - N8N_HOST=n8n.yourdomain.com
+      - N8N_HOST=<IP_ADDRESS>
       - N8N_PORT=5678
-      - N8N_PROTOCOL=https
+      - N8N_PROTOCOL=http
       - NODE_ENV=production
-      - WEBHOOK_URL=https://n8n.yourdomain.com/
-      - N8N_EDITOR_BASE_URL=https://n8n.yourdomain.com/
-      - N8N_PROXY_HOPS=1
-      - N8N_SECURE_COOKIE=true
+      - WEBHOOK_URL=http://<IP_ADDRESS>:5678/
+      - N8N_EDITOR_BASE_URL=http://<IP_ADDRESS>:5678/
+      - N8N_PROXY_HOPS=0
+      - N8N_SECURE_COOKIE=false
       - GENERIC_TIMEZONE=Asia/Bahrain
 
       # Basic auth (recommended)
