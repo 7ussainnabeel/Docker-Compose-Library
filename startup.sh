@@ -82,24 +82,105 @@ fi
 
 sleep 3
 
-# Prompt user to choose a folder
-echo "Choose a folder to cd into:"
-select folder in */; do
-  if [ -d "$folder" ]; then
-    echo "Changing to the folder selected..."
-    cd "$folder"
-    echo "Current directory: $(pwd)"
+# Select workflow
+while true; do
+  echo "Select an action:"
+  echo "1) Install/Run (current workflow)"
+  echo "2) Update stack (pull latest images and recreate non-database services only)"
+  read -r -p "Enter choice [1-2]: " action_choice
+
+  if [[ "$action_choice" == "1" ]]; then
+    folder_selected=false
+
+    # Prompt user to choose a folder
+    echo "Choose a folder to cd into (enter 0 or 00 to go back):"
+    select folder in */; do
+      if [[ "$REPLY" == "0" || "$REPLY" == "00" ]]; then
+        echo "Returning to workflow selection..."
+        break
+      elif [ -d "$folder" ]; then
+        echo "Changing to the folder selected..."
+        cd "$folder" || exit 1
+        echo "Current directory: $(pwd)"
+        folder_selected=true
+        break
+      else
+        echo "Invalid selection. Please choose a valid folder, or 0/00 to go back."
+      fi
+    done
+
+    if [ "$folder_selected" = false ]; then
+      continue
+    fi
+
+    sleep 2
+
+    # Run Docker Compose up -d
+    echo "Running Docker Compose up -d..."
+    "${COMPOSE_CMD[@]}" up -d
+    break
+  elif [[ "$action_choice" == "2" ]]; then
+    update_folder_selected=false
+
+    echo "Choose a folder to update (enter 0 or 00 to go back):"
+    select update_dir in */; do
+      if [[ "$REPLY" == "0" || "$REPLY" == "00" ]]; then
+        echo "Returning to workflow selection..."
+        break
+      elif [ -d "$update_dir" ]; then
+        echo "Changing to update folder..."
+        cd "$update_dir" || exit 1
+        echo "Current directory: $(pwd)"
+        update_folder_selected=true
+        break
+      else
+        echo "Invalid selection. Please choose a valid folder, or 0/00 to go back."
+      fi
+    done
+
+    if [ "$update_folder_selected" = false ]; then
+      continue
+    fi
+
+    sleep 2
+
+    echo "Pulling latest Docker images..."
+    "${COMPOSE_CMD[@]}" pull
+
+    echo "Detecting services..."
+    services=$("${COMPOSE_CMD[@]}" config --services)
+
+    if [ -z "$services" ]; then
+      echo "No Docker Compose services found in this folder."
+      exit 1
+    fi
+
+    NON_DB_SERVICES=()
+    DB_SERVICES=()
+
+    for service in $services; do
+      if [[ "$service" =~ (db|postgres|mysql|mariadb|mongo|redis|mssql|sqlserver|influx|cassandra|elasticsearch|opensearch) ]]; then
+        DB_SERVICES+=("$service")
+      else
+        NON_DB_SERVICES+=("$service")
+      fi
+    done
+
+    if [ ${#NON_DB_SERVICES[@]} -gt 0 ]; then
+      echo "Recreating non-database services: ${NON_DB_SERVICES[*]}"
+      "${COMPOSE_CMD[@]}" up -d --no-deps "${NON_DB_SERVICES[@]}"
+    else
+      echo "Only database-like services detected. Skipping service recreation."
+    fi
+
+    if [ ${#DB_SERVICES[@]} -gt 0 ]; then
+      echo "Database-like services were not recreated: ${DB_SERVICES[*]}"
+    fi
     break
   else
-    echo "Invalid selection. Please choose a valid folder."
+    echo "Invalid choice. Please choose 1 or 2."
   fi
 done
-
-sleep 2
-
-# Run Docker Compose up -d
-echo "Running Docker Compose up -d..."
-"${COMPOSE_CMD[@]}" up -d
 
 sleep 2
 
