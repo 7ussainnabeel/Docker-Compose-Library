@@ -38,6 +38,7 @@ services:
       - N8N_PROTOCOL=http
       - NODE_ENV=production
       - WEBHOOK_URL=http://localhost:5678/
+      - N8N_SECURE_COOKIE=false
       - GENERIC_TIMEZONE=Asia/Bahrain
 
       # Basic auth (recommended)
