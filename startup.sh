@@ -45,26 +45,39 @@ else
     echo "Docker is already installed."
 fi
 
-# Check if Docker Compose is installed
-if ! command -v docker-compose &> /dev/null
+# Check for Docker Compose (v2 plugin or v1 binary)
+if docker compose version &> /dev/null
 then
-    echo "Docker Compose is not installed. Installing Docker Compose..."
+  echo "Docker Compose v2 plugin is already installed."
+  COMPOSE_CMD=(sudo docker compose)
+elif command -v docker-compose &> /dev/null && docker-compose version &> /dev/null
+then
+  echo "Docker Compose v1 binary is already installed."
+  COMPOSE_CMD=(sudo docker-compose)
+else
+  echo "Docker Compose not found. Trying to install Docker Compose v2 plugin..."
+  sudo apt-get update
+  sudo apt-get install -y docker-compose-plugin
 
-    # Download Docker Compose version 1.29.2
-    sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    
-    # Apply executable permissions to the binary
+  if docker compose version &> /dev/null
+  then
+    echo "Docker Compose v2 plugin has been installed successfully."
+    COMPOSE_CMD=(sudo docker compose)
+  else
+    echo "Docker Compose v2 plugin installation failed. Trying Docker Compose v1 binary..."
+
+    sudo curl -fL "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
     sudo chmod +x /usr/local/bin/docker-compose
 
-    # Check if docker-compose was successfully downloaded
-    if [[ -f /usr/local/bin/docker-compose ]]; then
-        echo "Docker Compose has been installed successfully."
+    if command -v docker-compose &> /dev/null && docker-compose version &> /dev/null
+    then
+      echo "Docker Compose v1 has been installed successfully."
+      COMPOSE_CMD=(sudo docker-compose)
     else
-        echo "Failed to download Docker Compose."
-        exit 1
+      echo "Failed to install Docker Compose v1 and v2."
+      exit 1
     fi
-else
-    echo "Docker Compose is already installed."
+  fi
 fi
 
 sleep 3
@@ -84,9 +97,9 @@ done
 
 sleep 2
 
-# Run docker-compose up -d
-echo "Running docker-compose up -d..."
-sudo docker-compose up -d
+# Run Docker Compose up -d
+echo "Running Docker Compose up -d..."
+"${COMPOSE_CMD[@]}" up -d
 
 sleep 2
 
