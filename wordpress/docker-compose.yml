@@ -10,6 +10,12 @@ services:
       - WORDPRESS_DB_HOST=db
       - WORDPRESS_DB_USER=root
       - WORDPRESS_DB_PASSWORD=password
+      - |
+        WORDPRESS_CONFIG_EXTRA=
+          @ini_set('upload_max_filesize', '256M');
+          @ini_set('post_max_size', '256M');
+          @ini_set('max_execution_time', '300');
+          @ini_set('max_input_time', '300');
     depends_on:
       - db
       - phpmyadmin
