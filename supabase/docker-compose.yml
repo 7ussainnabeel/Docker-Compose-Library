@@ -1,0 +1,200 @@
+services:
+  db:
+    image: supabase/postgres:latest
+    container_name: supabase-db
+    restart: always
+    ports:
+      - "54322:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - supabase-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - supabase
+
+  rest:
+    image: postgrest/postgrest:latest
+    container_name: supabase-rest
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      PGRST_DB_URI: postgres://postgres:postgres@db:5432/postgres
+      PGRST_DB_SCHEMAS: public,storage,graphql_public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+    networks:
+      - supabase
+
+  auth:
+    image: supabase/gotrue:latest
+    container_name: supabase-auth
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "9999:9999"
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: http://localhost:9999
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://postgres:postgres@db:5432/postgres
+      GOTRUE_SITE_URL: http://localhost:3000
+      GOTRUE_URI_ALLOW_LIST: "*"
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: "3600"
+      GOTRUE_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_SMTP_ADMIN_EMAIL: admin@example.com
+      GOTRUE_SMTP_HOST: localhost
+      GOTRUE_SMTP_PORT: "1025"
+      GOTRUE_SMTP_USER: fake_mail_user
+      GOTRUE_SMTP_PASS: fake_mail_password
+      GOTRUE_SMTP_SENDER_NAME: fake_sender
+    networks:
+      - supabase
+
+  realtime:
+    image: supabase/realtime:latest
+    container_name: supabase-realtime
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: postgres
+      DB_SSL: "false"
+      SLOT_NAME: supabase_realtime
+      SECURE_CHANNELS: "true"
+      JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+    networks:
+      - supabase
+
+  storage:
+    image: supabase/storage-api:latest
+    container_name: supabase-storage
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
+      imgproxy:
+        condition: service_started
+    ports:
+      - "5000:5000"
+    environment:
+      ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.mbVDKiU6ubUqnXQOBpaGBx2PicMEuJN-zDMBxkwqIlU
+      SERVICE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.Zq_KuIBz2RjLjZzOJK0MrqYkI9bc1XqwWyvyi4C8nAo
+      POSTGREST_URL: http://rest:3000
+      PGRST_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+      DATABASE_URL: postgres://postgres:postgres@db:5432/postgres
+      FILE_SIZE_LIMIT: 52428800
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: stub
+      REGION: stub
+      GLOBAL_S3_BUCKET: stub
+      ENABLE_IMAGE_TRANSFORMATION: "true"
+      IMGPROXY_URL: http://imgproxy:5001
+    volumes:
+      - supabase-storage-data:/var/lib/storage
+    networks:
+      - supabase
+
+  imgproxy:
+    image: darthsim/imgproxy:latest
+    container_name: supabase-imgproxy
+    restart: always
+    ports:
+      - "5001:5001"
+    environment:
+      IMGPROXY_BIND: :5001
+      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
+      IMGPROXY_USE_ETAG: "true"
+      IMGPROXY_ENABLE_WEBP_DETECTION: "true"
+    volumes:
+      - supabase-storage-data:/var/lib/storage
+    networks:
+      - supabase
+
+  studio:
+    image: supabase/studio:latest
+    container_name: supabase-studio
+    restart: always
+    depends_on:
+      - rest
+      - auth
+      - db
+    ports:
+      - "54323:3000"
+    environment:
+      STUDIO_DEFAULT_ORGANIZATION: Local
+      STUDIO_DEFAULT_PROJECT: Local Supabase
+      STUDIO_PG_META_URL: http://meta:8080
+      SUPABASE_URL: http://localhost:3000
+      SUPABASE_PUBLIC_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:3000
+      SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.mbVDKiU6ubUqnXQOBpaGBx2PicMEuJN-zDMBxkwqIlU
+      SUPABASE_SERVICE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.Zq_KuIBz2RjLjZzOJK0MrqYkI9bc1XqwWyvyi4C8nAo
+    networks:
+      - supabase
+
+  meta:
+    image: supabase/postgres-meta:latest
+    container_name: supabase-meta
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: postgres
+      PG_META_DB_PASSWORD: postgres
+    networks:
+      - supabase
+
+  inbucket:
+    image: inbucket/inbucket:latest
+    container_name: supabase-inbucket
+    restart: always
+    ports:
+      - "54324:9000"
+      - "1025:2500"
+      - "1100:1100"
+    networks:
+      - supabase
+
+volumes:
+  supabase-db-data:
+  supabase-storage-data:
+
+networks:
+  supabase:
