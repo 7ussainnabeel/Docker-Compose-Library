@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<library version="20110515">
+  <book
+    id="wikipedia_en_all_nopic"
+    title="Wikipedia (NoPic)"
+    language="eng"
+    description="Offline Wikipedia without images for lower storage usage"
+    path="wikipedia_en_all_nopic.zim"
+  />
+  <book
+    id="wikemed_en"
+    title="WikiMed"
+    language="eng"
+    description="Offline medical reference"
+    path="wikimed_en.zim"
+  />
+  <book
+    id="survival_manual"
+    title="Survival Manual"
+    language="eng"
+    description="Field and preparedness manual"
+    path="survival_manual.zim"
+  />
+</library>

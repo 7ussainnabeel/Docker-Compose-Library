@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mesh Bridge</title>
+  <style>
+    body {
+      margin: 0;
+      color: #ecf2ff;
+      font-family: "Avenir Next", "Segoe UI Variable", "Noto Sans", sans-serif;
+      background: linear-gradient(170deg, #060a14, #0c1b31 50%, #121628);
+      padding: 20px;
+    }
+    .card {
+      max-width: 920px;
+      margin: 0 auto;
+      border: 1px solid #2d3f62;
+      border-radius: 14px;
+      background: rgba(14, 22, 36, 0.92);
+      padding: 18px;
+    }
+    pre {
+      background: #0a1220;
+      border: 1px solid #243655;
+      border-radius: 10px;
+      padding: 12px;
+      overflow-x: auto;
+      color: #9fd8ff;
+      min-height: 80px;
+    }
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ff7b7b;
+      margin-right: 6px;
+    }
+    .ok { background: #67fcb4; }
+    a { color: #7ad6ff; }
+  </style>
+</head>
+<body>
+  <article class="card">
+    <h1>Meshtastic Bridge</h1>
+    <p><span id="dot" class="dot"></span><span id="state">Loading status...</span></p>
+    <p>Serial device in container: <code>/dev/meshtastic</code></p>
+    <h2>Recent messages</h2>
+    <pre id="messages">Loading...</pre>
+    <p>Back to <a href="/">Dashboard</a></p>
+  </article>
+
+  <script>
+    function refresh() {
+      Promise.all([
+        fetch('/mesh/api/status', { cache: 'no-store' }).then(function (r) { return r.json(); }),
+        fetch('/mesh/api/messages', { cache: 'no-store' }).then(function (r) { return r.json(); })
+      ]).then(function (results) {
+        var status = results[0];
+        var messages = results[1];
+        var dot = document.getElementById('dot');
+        var state = document.getElementById('state');
+        var msg = document.getElementById('messages');
+
+        state.textContent = status.connected ? 'Connected @ ' + status.port : 'Disconnected (' + status.port + ')';
+        dot.className = status.connected ? 'dot ok' : 'dot';
+
+        if (!messages.items || messages.items.length === 0) {
+          msg.textContent = 'No serial messages received yet.';
+          return;
+        }
+
+        msg.textContent = messages.items.map(function (line) {
+          return '[' + line.ts + '] ' + line.text;
+        }).join('\n');
+      }).catch(function () {
+        document.getElementById('state').textContent = 'Bridge API unavailable';
+      });
+    }
+
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

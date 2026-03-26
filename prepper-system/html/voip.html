@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoIP Node</title>
+  <style>
+    body {
+      margin: 0;
+      color: #edf2ff;
+      font-family: "Avenir Next", "Segoe UI Variable", "Noto Sans", sans-serif;
+      background: linear-gradient(160deg, #070c16, #111c2f 50%, #0f1626);
+      padding: 20px;
+    }
+    .card {
+      max-width: 840px;
+      margin: 0 auto;
+      border: 1px solid #2e4269;
+      border-radius: 14px;
+      background: rgba(12, 19, 33, 0.92);
+      padding: 18px;
+    }
+    h1 { margin-top: 0; }
+    pre {
+      background: #0b111e;
+      border: 1px solid #24365d;
+      border-radius: 10px;
+      padding: 12px;
+      overflow-x: auto;
+      color: #9cd6ff;
+    }
+    a { color: #7ad6ff; }
+  </style>
+</head>
+<body>
+  <article class="card">
+    <h1>VoIP Node (Asterisk)</h1>
+    <p>This system exposes SIP on UDP 5060 and RTP on UDP 10000-10100 for local-only calls.</p>
+    <p>Default demo extensions:</p>
+    <pre>1001 / prepper1001
+1002 / prepper1002</pre>
+    <p>Dial <strong>1001</strong> or <strong>1002</strong> from any SIP client on the local network.</p>
+    <p>Back to <a href="/">Dashboard</a></p>
+  </article>
+</body>
+</html>

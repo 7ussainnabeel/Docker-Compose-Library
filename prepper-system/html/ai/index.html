@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Offline AI Assistant</title>
+  <style>
+    :root {
+      --bg: #0a101b;
+      --bg2: #121c2f;
+      --line: #304668;
+      --ink: #edf3ff;
+      --muted: #9ab3d8;
+      --acc: #5dd7ff;
+    }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Avenir Next", "Segoe UI Variable", "Noto Sans", sans-serif;
+      background: radial-gradient(circle at 20% 10%, #203962, transparent 35%), linear-gradient(160deg, var(--bg), var(--bg2));
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+    .app {
+      width: min(900px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(11, 17, 30, 0.92);
+      padding: 14px;
+    }
+    h1 { margin: 4px 0 10px; font-size: 1.2rem; }
+    #chat {
+      height: 52vh;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: #0a1220;
+      margin-bottom: 10px;
+    }
+    .msg { margin: 8px 0; white-space: pre-wrap; line-height: 1.45; }
+    .user { color: #9cdfff; }
+    .bot { color: #f2f7ff; }
+    .meta { color: var(--muted); font-size: 0.86rem; }
+    form { display: flex; gap: 8px; }
+    textarea {
+      flex: 1;
+      min-height: 70px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #0a1220;
+      color: var(--ink);
+      padding: 10px;
+      resize: vertical;
+    }
+    button {
+      border: 1px solid #4aa8c5;
+      background: linear-gradient(180deg, #20466e, #173a5d);
+      color: white;
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+    }
+    .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    input {
+      width: 170px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #0b1321;
+      color: var(--ink);
+      padding: 6px 8px;
+    }
+    a { color: var(--acc); }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="row">
+      <h1>Offline AI Assistant (Ollama)</h1>
+      <label class="meta">Model <input id="model" value="llama3.2:3b"></label>
+    </div>
+    <p class="meta">Start by pulling a model: <code>docker compose exec ollama ollama pull llama3.2:3b</code> · <a href="/">Dashboard</a></p>
+    <section id="chat"></section>
+    <form id="form">
+      <textarea id="prompt" placeholder="Ask something about survival, field medicine, logistics, or local docs..."></textarea>
+      <button type="submit">Send</button>
+    </form>
+  </main>
+
+  <script>
+    var chat = document.getElementById('chat');
+    var form = document.getElementById('form');
+    var promptEl = document.getElementById('prompt');
+    var modelEl = document.getElementById('model');
+
+    function addMessage(kind, text) {
+      var p = document.createElement('p');
+      p.className = 'msg ' + kind;
+      p.textContent = text;
+      chat.appendChild(p);
+      chat.scrollTop = chat.scrollHeight;
+      return p;
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var q = promptEl.value.trim();
+      if (!q) return;
+      var model = modelEl.value.trim() || 'llama3.2:3b';
+      addMessage('user', 'You: ' + q);
+      var bot = addMessage('bot', 'Assistant: ...');
+      promptEl.value = '';
+
+      fetch('/ollama/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: model, prompt: q, stream: false })
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).then(function (data) {
+        bot.textContent = 'Assistant: ' + (data.response || '(empty response)');
+      }).catch(function (err) {
+        bot.textContent = 'Assistant error: ' + err.message;
+      });
+    });
+  </script>
+</body>
+</html>

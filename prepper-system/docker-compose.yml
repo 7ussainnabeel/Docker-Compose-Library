@@ -1,0 +1,165 @@
+name: prepper-system
+
+services:
+  gateway:
+    image: nginx:1.27-alpine
+    container_name: prepper-gateway
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./html:/usr/share/nginx/html:ro
+    depends_on:
+      - kiwix
+      - search
+      - filebrowser
+      - mesh-bridge
+    restart: always
+    networks:
+      - prepper-net
+    security_opt:
+      - no-new-privileges:true
+
+  kiwix:
+    image: ghcr.io/kiwix/kiwix-serve:latest
+    container_name: prepper-kiwix
+    command: ["--port=8080", "--library", "/data/library.xml"]
+    volumes:
+      - ./data/kiwix:/data:ro
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - prepper-net
+    security_opt:
+      - no-new-privileges:true
+
+  search:
+    build:
+      context: ./search
+      dockerfile: Dockerfile
+    container_name: prepper-search
+    environment:
+      SEARCH_DATA_DIR: /content
+      SEARCH_DB_PATH: /db/search.db
+      SEARCH_REINDEX_SECS: 1200
+      SEARCH_MAX_FILE_MB: 2
+    volumes:
+      - ./data/search-content:/content:ro
+      - ./data/search-db:/db
+      - ./data/kiwix:/kiwix:ro
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - prepper-net
+    security_opt:
+      - no-new-privileges:true
+
+  filebrowser:
+    image: filebrowser/filebrowser:v2.31.2
+    container_name: prepper-files
+    command:
+      - --address
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --database
+      - /database/filebrowser.db
+      - --root
+      - /srv
+      - --locale
+      - en
+    volumes:
+      - ./data/files:/srv
+      - ./data/filebrowser-db:/database
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - prepper-net
+    security_opt:
+      - no-new-privileges:true
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: prepper-ai
+    environment:
+      OLLAMA_KEEP_ALIVE: 5m
+      OLLAMA_NUM_PARALLEL: 1
+      OLLAMA_MAX_LOADED_MODELS: 1
+    volumes:
+      - ./data/ollama:/root/.ollama
+    restart: always
+    profiles:
+      - full
+    networks:
+      - prepper-net
+
+  maps:
+    image: maptiler/tileserver-gl:latest
+    container_name: prepper-maps
+    command: ["--port", "8080", "/data"]
+    volumes:
+      - ./maps/mbtiles:/data:ro
+    restart: always
+    profiles:
+      - full
+    networks:
+      - prepper-net
+    security_opt:
+      - no-new-privileges:true
+
+  asterisk:
+    build:
+      context: ./asterisk
+      dockerfile: Dockerfile
+    container_name: prepper-voip
+    ports:
+      - "5060:5060/udp"
+      - "10000-10100:10000-10100/udp"
+    volumes:
+      - ./asterisk/config:/etc/asterisk:ro
+      - ./data/asterisk/spool:/var/spool/asterisk
+      - ./data/asterisk/log:/var/log/asterisk
+      - ./data/asterisk/lib:/var/lib/asterisk
+    restart: always
+    networks:
+      - prepper-net
+    security_opt:
+      - no-new-privileges:true
+
+  mesh-bridge:
+    build:
+      context: ./mesh-bridge
+      dockerfile: Dockerfile
+    container_name: prepper-mesh
+    environment:
+      MESH_SERIAL_PORT: /dev/meshtastic
+      MESH_SERIAL_BAUD: 115200
+      MESH_MAX_MESSAGES: 200
+    devices:
+      - ${MESHTASTIC_DEVICE:-/dev/null}:/dev/meshtastic
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8090/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - prepper-net
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  prepper-net:
+    driver: bridge

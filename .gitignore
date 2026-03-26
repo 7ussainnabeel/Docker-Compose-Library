@@ -1,2 +1,5 @@
 # Ignore macOS system files
 .DS_Store
+/wordpress/dump.sql
+/wordpress/wp-content
+/wordpress/uploads.ini

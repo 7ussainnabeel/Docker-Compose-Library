@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0f1a">
+  <link rel="manifest" href="/pwa/manifest.webmanifest">
+  <title>Prepper System</title>
+  <style>
+    :root {
+      --bg-0: #070a12;
+      --bg-1: #101728;
+      --bg-2: #17213a;
+      --ink: #e8eefc;
+      --muted: #9fb3d1;
+      --line: #2a3a5f;
+      --cyan: #33d6ff;
+      --amber: #ffb84d;
+      --ok: #66ffb1;
+      --warn: #ffd166;
+      --danger: #ff7b7b;
+      --card-shadow: 0 20px 35px rgba(0, 0, 0, 0.35);
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: "Avenir Next", "Segoe UI Variable", "Noto Sans", "Helvetica Neue", sans-serif;
+      background:
+        radial-gradient(circle at 10% 10%, #18325e 0%, transparent 45%),
+        radial-gradient(circle at 90% 90%, #3a1f4f 0%, transparent 40%),
+        linear-gradient(140deg, var(--bg-0), var(--bg-1) 45%, var(--bg-2));
+      display: grid;
+      place-items: start center;
+      padding: 20px;
+    }
+
+    .shell {
+      width: min(1100px, 100%);
+      animation: rise 500ms ease-out;
+    }
+
+    .hero {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(17, 28, 52, 0.85), rgba(14, 21, 38, 0.85));
+      box-shadow: var(--card-shadow);
+      padding: 20px;
+      margin-bottom: 16px;
+      backdrop-filter: blur(6px);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.45rem, 2.9vw, 2.2rem);
+      letter-spacing: 0.03em;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.96rem;
+      line-height: 1.45;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .card {
+      display: block;
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: linear-gradient(165deg, rgba(21, 31, 56, 0.88), rgba(15, 24, 42, 0.88));
+      padding: 16px;
+      transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+    }
+
+    .card:hover,
+    .card:focus-visible {
+      transform: translateY(-2px);
+      border-color: var(--cyan);
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+      outline: none;
+    }
+
+    .line-1 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .icon {
+      font-size: 1.35rem;
+    }
+
+    .name {
+      margin: 0;
+      font-size: 1.02rem;
+      font-weight: 650;
+    }
+
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .chip {
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.8rem;
+      border-radius: 999px;
+      padding: 5px 9px;
+      background: rgba(14, 20, 34, 0.7);
+    }
+
+    .status {
+      margin-top: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(15, 23, 40, 0.82);
+      padding: 14px;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .status strong {
+      color: var(--ink);
+    }
+
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .danger { color: var(--danger); }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (min-width: 700px) {
+      .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (min-width: 980px) {
+      .grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <h1>Prepper System Control Deck</h1>
+      <p class="subtitle">
+        Fully offline, LAN-only survival platform on 192.168.4.1. All modules run locally and self-heal with Docker restart policies.
+      </p>
+      <div class="chips">
+        <span class="chip">Raspberry Pi 4 (8GB)</span>
+        <span class="chip">Offline Mode</span>
+        <span class="chip">Wi-Fi AP: PrepperPi</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <a class="card" href="/wiki/" aria-label="Open offline knowledge library">
+        <div class="line-1"><h2 class="name">Knowledge Library</h2><span class="icon">📚</span></div>
+        <p class="hint">Kiwix with Wikipedia and survival/medical ZIM libraries.</p>
+      </a>
+
+      <a class="card" href="/search/" aria-label="Open offline search">
+        <div class="line-1"><h2 class="name">Offline Search</h2><span class="icon">🔎</span></div>
+        <p class="hint">Private index for local documents and knowledge metadata.</p>
+      </a>
+
+      <a class="card" href="/files/" aria-label="Open file browser">
+        <div class="line-1"><h2 class="name">File Exchange</h2><span class="icon">🗂️</span></div>
+        <p class="hint">Upload/download resources over local network only.</p>
+      </a>
+
+      <a class="card" href="/ai/" aria-label="Open local AI assistant">
+        <div class="line-1"><h2 class="name">AI Assistant</h2><span class="icon">🤖</span></div>
+        <p class="hint">Local chat UI over Ollama API, no cloud dependency.</p>
+      </a>
+
+      <a class="card" href="/maps/" aria-label="Open offline maps">
+        <div class="line-1"><h2 class="name">Offline Maps</h2><span class="icon">🗺️</span></div>
+        <p class="hint">MBTiles served locally via TileServer-GL.</p>
+      </a>
+
+      <a class="card" href="/voip.html" aria-label="Open VoIP setup details">
+        <div class="line-1"><h2 class="name">VoIP Node</h2><span class="icon">📞</span></div>
+        <p class="hint">Asterisk SIP extensions for local calling and intercom.</p>
+      </a>
+
+      <a class="card" href="/mesh.html" aria-label="Open mesh bridge status">
+        <div class="line-1"><h2 class="name">Mesh Bridge</h2><span class="icon">📡</span></div>
+        <p class="hint">Meshtastic USB serial bridge and message/status API.</p>
+      </a>
+    </section>
+
+    <section class="status">
+      <strong>System endpoint:</strong> http://192.168.4.1<br>
+      <strong>Mesh status:</strong> <span id="meshState" class="warn">Checking...</span>
+    </section>
+  </main>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/pwa/sw.js").catch(function () {});
+    }
+
+    fetch("/mesh/api/status", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (data) {
+        var el = document.getElementById("meshState");
+        if (data.connected) {
+          el.textContent = "Connected";
+          el.className = "ok";
+        } else {
+          el.textContent = "Disconnected";
+          el.className = "danger";
+        }
+      })
+      .catch(function () {
+        var el = document.getElementById("meshState");
+        el.textContent = "Unavailable";
+        el.className = "danger";
+      });
+  </script>
+</body>
+</html>

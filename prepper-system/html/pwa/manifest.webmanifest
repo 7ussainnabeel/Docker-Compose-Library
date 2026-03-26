@@ -1,0 +1,10 @@
+{
+  "name": "Prepper System",
+  "short_name": "Prepper",
+  "description": "Offline emergency platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0f1a",
+  "theme_color": "#0b0f1a",
+  "icons": []
+}
