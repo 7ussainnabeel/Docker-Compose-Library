@@ -1,0 +1,23 @@
+services:
+  lan-messenger:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lan-messenger
+    restart: unless-stopped
+    environment:
+      PORT: ${PORT:-3000}
+      HOST: 0.0.0.0
+      DB_FILE: /app/backend/data/chat.sqlite
+      MDNS_NAME: ${MDNS_NAME:-LAN Messenger}
+      TLS_ENABLED: ${TLS_ENABLED:-true}
+      TLS_KEY_FILE: ${TLS_KEY_FILE:-}
+      TLS_CERT_FILE: ${TLS_CERT_FILE:-}
+      TLS_HOSTS: ${TLS_HOSTS:-localhost,127.0.0.1}
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    volumes:
+      - lan_messenger_data:/app/backend/data
+
+volumes:
+  lan_messenger_data:
