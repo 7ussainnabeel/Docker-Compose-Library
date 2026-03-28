@@ -24,6 +24,7 @@ function initDb(dbFile) {
     CREATE TABLE IF NOT EXISTS groups (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
+      avatar TEXT,
       created_by TEXT NOT NULL,
       created_at INTEGER NOT NULL
     );
@@ -81,6 +82,7 @@ function initDb(dbFile) {
 
   ensureColumn('users', 'about', 'about TEXT');
   ensureColumn('users', 'pin', 'pin TEXT');
+  ensureColumn('groups', 'avatar', 'avatar TEXT');
   ensureColumn('group_members', 'role', "role TEXT NOT NULL DEFAULT 'member'");
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_pin ON users(pin) WHERE pin IS NOT NULL');
 
@@ -98,14 +100,14 @@ function initDb(dbFile) {
     listUsers: db.prepare('SELECT id, username, avatar, about, last_seen FROM users ORDER BY username ASC'),
     getUserById: db.prepare('SELECT id, username, avatar, about, pin, last_seen FROM users WHERE id = ? LIMIT 1'),
     findUserByPin: db.prepare('SELECT id, username, avatar, about, pin, last_seen FROM users WHERE pin = ? LIMIT 1'),
-    insertGroup: db.prepare('INSERT INTO groups (id, name, created_by, created_at) VALUES (?, ?, ?, ?)'),
-    groupById: db.prepare('SELECT id, name, created_by, created_at FROM groups WHERE id = ? LIMIT 1'),
+    insertGroup: db.prepare('INSERT INTO groups (id, name, avatar, created_by, created_at) VALUES (?, ?, ?, ?, ?)'),
+    groupById: db.prepare('SELECT id, name, avatar, created_by, created_at FROM groups WHERE id = ? LIMIT 1'),
     addMember: db.prepare('INSERT OR IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)'),
     setMemberRole: db.prepare('UPDATE group_members SET role = ? WHERE group_id = ? AND user_id = ?'),
     removeMember: db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?'),
     memberRecordForGroupUser: db.prepare('SELECT group_id, user_id, role FROM group_members WHERE group_id = ? AND user_id = ? LIMIT 1'),
     groupsForUser: db.prepare(`
-      SELECT g.id, g.name, g.created_by, g.created_at, gm.role AS my_role
+      SELECT g.id, g.name, g.avatar, g.created_by, g.created_at, gm.role AS my_role
       FROM groups g
       INNER JOIN group_members gm ON gm.group_id = g.id
       WHERE gm.user_id = ?
@@ -120,6 +122,7 @@ function initDb(dbFile) {
       ORDER BY CASE gm.role WHEN 'admin' THEN 0 ELSE 1 END, u.username COLLATE NOCASE ASC
     `),
     renameGroup: db.prepare('UPDATE groups SET name = ? WHERE id = ?'),
+    setGroupAvatar: db.prepare('UPDATE groups SET avatar = ? WHERE id = ?'),
     insertMessage: db.prepare(`
       INSERT INTO messages (id, kind, from_user, to_user, group_id, payload, mime_type, created_at)
       VALUES (@id, @kind, @from_user, @to_user, @group_id, @payload, @mime_type, @created_at)

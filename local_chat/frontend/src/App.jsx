@@ -260,6 +260,7 @@ export default function App() {
   const incomingVoiceRef = useRef(new Map());
   const typingTimers = useRef(new Map());
   const profilePhotoInputRef = useRef(null);
+  const groupPhotoInputRef = useRef(null);
   const readReceiptSentRef = useRef(new Set());
 
   const peerConnRef = useRef(null);
@@ -286,6 +287,7 @@ export default function App() {
   const activeConversationKey = convKey(active, profile.userId);
   const visibleUsers = useMemo(() => users.filter((u) => u.id !== profile.userId), [users, profile.userId]);
   const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
+  const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups]);
   const activeGroup = useMemo(
     () => (active?.type === 'group' ? groups.find((g) => g.id === active.id) || null : null),
     [active, groups]
@@ -893,6 +895,9 @@ export default function App() {
           }
           if (data.code === 'invalid-group-name') {
             window.alert('Please enter a valid group name.');
+          }
+          if (data.code === 'invalid-group-avatar') {
+            window.alert('Group photo is too large. Please choose a smaller image.');
           }
           if (data.code === 'invalid-voice-payload') {
             window.alert('Voice note failed to send. Please record again.');
@@ -1864,6 +1869,10 @@ export default function App() {
     profilePhotoInputRef.current?.click();
   };
 
+  const triggerGroupPhotoPicker = () => {
+    groupPhotoInputRef.current?.click();
+  };
+
   const onProfilePhotoSelected = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -1893,6 +1902,34 @@ export default function App() {
     const nextProfile = { ...profileRef.current, avatar: '' };
     setProfile(nextProfile);
     sendHello(nextProfile, { profileUpdate: true });
+  };
+
+  const onGroupPhotoSelected = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !activeGroupInfo?.group?.id) return;
+
+    if (!file.type.startsWith('image/')) {
+      window.alert('Please choose an image file.');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      window.alert('Group photo must be 2MB or less.');
+      return;
+    }
+
+    try {
+      const avatarDataUrl = await compressAvatarToDataUrl(file);
+      wsRef.current?.send('group-avatar-update', { groupId: activeGroupInfo.group.id, avatar: avatarDataUrl });
+    } catch {
+      window.alert('Failed to process image. Please try another image.');
+    }
+  };
+
+  const clearGroupPhoto = () => {
+    if (!activeGroupInfo?.group?.id) return;
+    wsRef.current?.send('group-avatar-update', { groupId: activeGroupInfo.group.id, avatar: '' });
   };
 
   const triggerPhotoUpload = () => {
@@ -2247,7 +2284,7 @@ export default function App() {
                 const isActive = active?.id === chat.id && active?.type === chat.type;
                 const conversationId = convKey(chat, profile.userId);
                 const unread = unreadCounts[conversationId] || 0;
-                const chatAvatar = chat.type === 'direct' ? userById.get(chat.id)?.avatar : '';
+                const chatAvatar = chat.type === 'direct' ? userById.get(chat.id)?.avatar : groupById.get(chat.id)?.avatar || '';
                 const menuKey = `${chat.type}:${chat.id}`;
                 const isMutedConversation = Boolean(mutedConversations[conversationId]);
                 const isArchivedConversation = Boolean(archivedConversations[conversationId]);
@@ -2313,7 +2350,7 @@ export default function App() {
               >
                 <Avatar
                   name={activeName}
-                  avatar={active?.type === 'direct' ? userById.get(active.id)?.avatar : ''}
+                  avatar={active?.type === 'direct' ? userById.get(active.id)?.avatar : groupById.get(active.id)?.avatar || ''}
                 />
                 <div className="common-header-content">
                   <h2 className="common-header-title">{activeName}</h2>
@@ -2501,7 +2538,7 @@ export default function App() {
               <section className="wa-profile-hero">
                 <Avatar
                   name={activeGroupInfo?.group?.name || activeName}
-                  avatar=""
+                  avatar={activeGroupInfo?.group?.avatar || groupById.get(active?.id)?.avatar || ''}
                   className="main-info-image"
                 />
                 <h4 className="wa-profile-name">{activeGroupInfo?.group?.name || activeName}</h4>
@@ -2592,6 +2629,13 @@ export default function App() {
                       </article>
                     </section>
                   )}
+
+                  <section className="wa-profile-group">
+                    <div className="profile-photo-actions">
+                      <button className="common-button profile-photo-button" onClick={triggerGroupPhotoPicker}>Change group photo</button>
+                      {Boolean(activeGroupInfo.group.avatar) && <button className="common-button profile-photo-remove" onClick={clearGroupPhoto}>Remove photo</button>}
+                    </div>
+                  </section>
                 </>
               )}
             </div>
@@ -2850,6 +2894,14 @@ export default function App() {
         accept="image/*"
         className="hidden-file-input"
         onChange={onProfilePhotoSelected}
+      />
+
+      <input
+        ref={groupPhotoInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden-file-input"
+        onChange={onGroupPhotoSelected}
       />
 
       <input

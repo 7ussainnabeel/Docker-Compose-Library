@@ -390,6 +390,7 @@ wss.on('connection', (ws) => {
         'create-group',
         'group-meta-request',
         'group-rename',
+        'group-avatar-update',
         'add-group-members',
         'remove-group-member',
         'set-group-member-role',
@@ -536,10 +537,10 @@ wss.on('connection', (ws) => {
       const members = Array.isArray(data.members) ? data.members : [];
       const uniqueMembers = Array.from(new Set([ws.userId, ...members])).slice(0, MAX_GROUP_MEMBERS);
 
-      statements.insertGroup.run(groupId, name, ws.userId, Date.now());
+      statements.insertGroup.run(groupId, name, null, ws.userId, Date.now());
       uniqueMembers.forEach((memberId) => statements.addMember.run(groupId, memberId, memberId === ws.userId ? 'admin' : 'member'));
 
-      const event = { action: 'group-created', group: { id: groupId, name, created_by: ws.userId, created_at: Date.now() } };
+      const event = { action: 'group-created', group: { id: groupId, name, avatar: null, created_by: ws.userId, created_at: Date.now() } };
       uniqueMembers.forEach((memberId) => enqueueOrSend(memberId, event));
       broadcastGroupMeta(groupId, ws.userId);
       audit('group-created', ws.userId, ws.remoteIp, { groupId, size: uniqueMembers.length });
@@ -593,6 +594,30 @@ wss.on('connection', (ws) => {
       statements.renameGroup.run(name, data.groupId);
       broadcastGroupMeta(data.groupId, ws.userId);
       audit('group-renamed', ws.userId, ws.remoteIp, { groupId: data.groupId });
+      return;
+    }
+
+    if (action === 'group-avatar-update') {
+      if (!data.groupId) {
+        safeSend(ws, { action: 'error', code: 'group-not-found' });
+        return;
+      }
+
+      if (!isGroupMember(data.groupId, ws.userId)) {
+        safeSend(ws, { action: 'error', code: 'forbidden-group-access' });
+        audit('forbidden-group-access', ws.userId, ws.remoteIp, { action, groupId: data.groupId });
+        return;
+      }
+
+      const avatar = typeof data.avatar === 'string' ? data.avatar : '';
+      if (avatar.length > 180000) {
+        safeSend(ws, { action: 'error', code: 'invalid-group-avatar' });
+        return;
+      }
+
+      statements.setGroupAvatar.run(avatar || null, data.groupId);
+      broadcastGroupMeta(data.groupId, ws.userId);
+      audit('group-avatar-updated', ws.userId, ws.remoteIp, { groupId: data.groupId, hasAvatar: Boolean(avatar) });
       return;
     }
 
