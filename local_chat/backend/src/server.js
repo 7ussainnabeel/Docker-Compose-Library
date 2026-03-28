@@ -40,6 +40,7 @@ app.use(express.json({ limit: HTTP_BODY_LIMIT }));
 const { db, statements } = initDb(DB_FILE);
 const onlineUsers = new Map();
 const rateBucket = new Map();
+const groupCalls = new Map();
 
 db.exec("UPDATE group_members SET role = 'member' WHERE role IS NULL OR role NOT IN ('admin', 'member')");
 db.exec(`
@@ -222,6 +223,41 @@ function groupConversationKey(groupId) {
   return `group:${groupId}`;
 }
 
+function getOrCreateGroupCall(groupId) {
+  if (!groupCalls.has(groupId)) {
+    groupCalls.set(groupId, { participants: new Set(), startedAt: Date.now() });
+  }
+  return groupCalls.get(groupId);
+}
+
+function emitGroupCallStatus(groupId) {
+  const session = groupCalls.get(groupId);
+  const participants = session ? Array.from(session.participants) : [];
+  const payload = {
+    action: 'group-call-status',
+    groupId,
+    ongoing: participants.length > 0,
+    participants,
+    participantCount: participants.length,
+    startedAt: session?.startedAt || null,
+    updatedAt: Date.now()
+  };
+
+  const members = groupMembers(groupId);
+  members.forEach((memberId) => enqueueOrSend(memberId, payload));
+}
+
+function removeUserFromAllGroupCalls(userId) {
+  for (const [groupId, session] of groupCalls.entries()) {
+    if (!session.participants.has(userId)) continue;
+    session.participants.delete(userId);
+    if (session.participants.size === 0) {
+      groupCalls.delete(groupId);
+    }
+    emitGroupCallStatus(groupId);
+  }
+}
+
 function getTempSetting({ me, peerId, groupId }) {
   if (peerId) {
     const [peerA, peerB] = directPair(me, peerId);
@@ -371,7 +407,9 @@ wss.on('connection', (ws) => {
         'call-answer',
         'call-ice',
         'call-end',
-        'call-fallback'
+        'call-fallback',
+        'group-call-status-request',
+        'group-call-join'
       ]);
 
       if (!allowedActions.has(action)) {
@@ -812,6 +850,49 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    if (action === 'group-call-status-request') {
+      if (!data.groupId || !isGroupMember(data.groupId, ws.userId)) {
+        safeSend(ws, { action: 'error', code: 'forbidden-group-access' });
+        return;
+      }
+      const session = groupCalls.get(data.groupId);
+      safeSend(ws, {
+        action: 'group-call-status',
+        groupId: data.groupId,
+        ongoing: Boolean(session && session.participants.size > 0),
+        participants: session ? Array.from(session.participants) : [],
+        participantCount: session ? session.participants.size : 0,
+        startedAt: session?.startedAt || null,
+        updatedAt: Date.now()
+      });
+      return;
+    }
+
+    if (action === 'group-call-join') {
+      if (!data.groupId || !isGroupMember(data.groupId, ws.userId)) {
+        safeSend(ws, { action: 'error', code: 'forbidden-group-access' });
+        return;
+      }
+
+      const session = groupCalls.get(data.groupId);
+      if (!session || session.participants.size === 0) {
+        safeSend(ws, { action: 'error', code: 'group-call-not-active' });
+        return;
+      }
+
+      session.participants.add(ws.userId);
+      const targets = Array.from(session.participants).filter((id) => id !== ws.userId);
+      targets.forEach((memberId) => enqueueOrSend(memberId, {
+        action: 'group-call-join-request',
+        groupId: data.groupId,
+        from: ws.userId,
+        createdAt: Date.now()
+      }));
+
+      emitGroupCallStatus(data.groupId);
+      return;
+    }
+
       if (action === 'direct-message') {
         if (!data.to || !isValidEncryptedPayload(data.payload)) {
           safeSend(ws, { action: 'error', code: 'invalid-direct-payload' });
@@ -985,6 +1066,32 @@ wss.on('connection', (ws) => {
 
       if (action === 'call-offer' || action === 'call-answer' || action === 'call-ice' || action === 'call-end' || action === 'call-fallback') {
         if (!data.to) return;
+
+        if (data.groupId) {
+          if (!isGroupMember(data.groupId, ws.userId) || !isGroupMember(data.groupId, data.to)) {
+            safeSend(ws, { action: 'error', code: 'forbidden-group-access' });
+            return;
+          }
+        }
+
+        if (action === 'call-offer' && data.groupId) {
+          const session = getOrCreateGroupCall(data.groupId);
+          session.participants.add(ws.userId);
+          session.participants.add(data.to);
+          emitGroupCallStatus(data.groupId);
+        }
+
+        if (action === 'call-end' && data.groupId) {
+          const session = groupCalls.get(data.groupId);
+          if (session) {
+            session.participants.delete(ws.userId);
+            if (session.participants.size === 0) {
+              groupCalls.delete(data.groupId);
+            }
+            emitGroupCallStatus(data.groupId);
+          }
+        }
+
         const event = {
           action,
           from: ws.userId,
@@ -992,6 +1099,7 @@ wss.on('connection', (ws) => {
           sdp: data.sdp || null,
           candidate: data.candidate || null,
           reason: data.reason || null,
+          groupId: data.groupId || null,
           createdAt: Date.now()
         };
 
@@ -1009,6 +1117,8 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
+    removeUserFromAllGroupCalls(ws.userId);
+
     if (ws.userId) {
       const persisted = statements.getUserById.get(ws.userId);
       statements.upsertUser.run({

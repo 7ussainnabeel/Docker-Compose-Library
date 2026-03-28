@@ -206,7 +206,8 @@ export default function App() {
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 767 : false);
-  const [callState, setCallState] = useState({ status: 'idle', peerId: null, mode: 'webrtc' });
+  const [callState, setCallState] = useState({ status: 'idle', peerId: null, peerIds: [], mode: 'webrtc', groupId: null, conference: false });
+  const [infoPanelMode, setInfoPanelMode] = useState('self');
   const [onboardingName, setOnboardingName] = useState('');
   const [onboardingAbout, setOnboardingAbout] = useState('Hey there! I am using LAN Messenger.');
   const [onboardingPin, setOnboardingPin] = useState('');
@@ -240,6 +241,7 @@ export default function App() {
   const [groupNameDraft, setGroupNameDraft] = useState('');
   const [groupSelectedMembers, setGroupSelectedMembers] = useState([]);
   const [groupInfo, setGroupInfo] = useState({ group: null, members: [] });
+  const [groupCallStatus, setGroupCallStatus] = useState({});
   const [groupNameEditDraft, setGroupNameEditDraft] = useState('');
   const [groupMembersToAdd, setGroupMembersToAdd] = useState([]);
   const [onboardingPinConfirm, setOnboardingPinConfirm] = useState('');
@@ -247,6 +249,7 @@ export default function App() {
 
   const wsRef = useRef(null);
   const profileRef = useRef(profile);
+  const callStateRef = useRef(callState);
   const profilePinRef = useRef(profilePin);
   const authReadyRef = useRef(false);
   const authModeRef = useRef('login');
@@ -260,9 +263,12 @@ export default function App() {
   const readReceiptSentRef = useRef(new Set());
 
   const peerConnRef = useRef(null);
+  const peerConnsRef = useRef(new Map());
   const localCallStreamRef = useRef(null);
   const remoteAudioRef = useRef(null);
-  const pendingIceRef = useRef([]);
+  const pendingIceRef = useRef(new Map());
+  const remoteAudioElsRef = useRef(new Map());
+  const autoJoinGroupIdRef = useRef(null);
   const voiceRecordingRef = useRef({ startedAt: 0, clipId: null });
   const chatMenuRef = useRef(null);
   const sideMenuRef = useRef(null);
@@ -291,9 +297,12 @@ export default function App() {
   }, [activeGroup, groupInfo]);
 
   const activeGroupMembers = activeGroupInfo?.members || [];
+  const activeGroupCall = active?.type === 'group' ? groupCallStatus[active.id] : null;
   const myActiveGroupMember = activeGroupMembers.find((member) => member.id === profile.userId) || null;
   const isActiveGroupCreator = activeGroupInfo?.group?.created_by === profile.userId;
   const isActiveGroupAdmin = Boolean(isActiveGroupCreator || myActiveGroupMember?.role === 'admin');
+  const activeDirectUser = active?.type === 'direct' ? userById.get(active.id) || null : null;
+  const canEditOwnProfile = infoPanelMode === 'self';
   const addableActiveGroupUsers = useMemo(() => {
     if (!activeGroupInfo) return [];
     const memberIds = new Set(activeGroupMembers.map((member) => member.id));
@@ -417,6 +426,10 @@ export default function App() {
   }, [authMode]);
 
   useEffect(() => {
+    callStateRef.current = callState;
+  }, [callState]);
+
+  useEffect(() => {
     const onResize = () => {
       const mobile = window.innerWidth <= 767;
       setIsMobile(mobile);
@@ -517,13 +530,7 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const apply = () => setTheme(media.matches ? 'dark' : 'light');
-
-    apply();
-    media.addEventListener('change', apply);
-    return () => media.removeEventListener('change', apply);
+    return undefined;
   }, []);
 
   useEffect(() => {
@@ -592,6 +599,10 @@ export default function App() {
       wsRef.current?.send('group-meta-request', { groupId: activeGroup.id });
     }
   }, [showInfoPanel, activeGroup]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   useEffect(() => {
     if (!activeGroupInfo?.group?.name) {
@@ -692,6 +703,16 @@ export default function App() {
       peerConnRef.current.close();
       peerConnRef.current = null;
     }
+    peerConnsRef.current.forEach((pc) => {
+      pc.close();
+    });
+    peerConnsRef.current.clear();
+    pendingIceRef.current.clear();
+    remoteAudioElsRef.current.forEach((audio) => {
+      audio.srcObject = null;
+      audio.remove();
+    });
+    remoteAudioElsRef.current.clear();
 
     if (localCallStreamRef.current) {
       localCallStreamRef.current.getTracks().forEach((t) => t.stop());
@@ -705,36 +726,91 @@ export default function App() {
 
     setIsMuted(false);
     setIsSpeakerOn(true);
-    setCallState({ status: 'idle', peerId: null, mode: 'webrtc' });
+    setCallState({ status: 'idle', peerId: null, peerIds: [], mode: 'webrtc', groupId: null, conference: false });
   };
 
-  const createPeerConnection = (peerId) => {
+  const closePeerConnection = (peerId) => {
+    const pc = peerConnsRef.current.get(peerId);
+    if (pc) {
+      pc.close();
+      peerConnsRef.current.delete(peerId);
+    }
+    pendingIceRef.current.delete(peerId);
+    const remoteAudio = remoteAudioElsRef.current.get(peerId);
+    if (remoteAudio) {
+      remoteAudio.srcObject = null;
+      remoteAudio.remove();
+      remoteAudioElsRef.current.delete(peerId);
+    }
+  };
+
+  const attachRemoteStream = (peerId, stream) => {
+    if (!stream) return;
+
+    if (peerConnsRef.current.size <= 1 && remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = stream;
+      remoteAudioRef.current.play().catch(() => {});
+      return;
+    }
+
+    let audio = remoteAudioElsRef.current.get(peerId);
+    if (!audio) {
+      audio = document.createElement('audio');
+      audio.autoplay = true;
+      audio.playsInline = true;
+      audio.style.display = 'none';
+      document.body.appendChild(audio);
+      remoteAudioElsRef.current.set(peerId, audio);
+    }
+    audio.srcObject = stream;
+    audio.play().catch(() => {});
+  };
+
+  const createPeerConnection = (peerId, groupId = null) => {
+    const existing = peerConnsRef.current.get(peerId);
+    if (existing) return existing;
+
     const pc = new RTCPeerConnection({ iceServers: [] });
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        wsRef.current?.send('call-ice', { to: peerId, candidate: event.candidate });
+        wsRef.current?.send('call-ice', { to: peerId, candidate: event.candidate, groupId });
       }
     };
 
     pc.ontrack = (event) => {
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = event.streams[0];
-        remoteAudioRef.current.play().catch(() => {});
-      }
+      attachRemoteStream(peerId, event.streams[0]);
     };
 
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === 'connected') {
-        setCallState({ status: 'connected', peerId, mode: 'webrtc' });
+        setCallState((prev) => ({
+          ...prev,
+          status: 'connected',
+          peerId,
+          peerIds: Array.from(new Set([...prev.peerIds, peerId]))
+        }));
       }
       if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-        wsRef.current?.send('call-fallback', { to: peerId, reason: pc.connectionState });
-        setCallState({ status: 'fallback', peerId, mode: 'ws-audio' });
+        wsRef.current?.send('call-fallback', { to: peerId, reason: pc.connectionState, groupId });
+        closePeerConnection(peerId);
+        const remainingPeers = Array.from(peerConnsRef.current.keys());
+        if (!remainingPeers.length) {
+          setCallState({ status: 'fallback', peerId, peerIds: [], mode: 'ws-audio', groupId: null, conference: false });
+          return;
+        }
+        setCallState((prev) => ({
+          ...prev,
+          status: 'fallback',
+          peerId: remainingPeers[0],
+          peerIds: remainingPeers,
+          mode: 'ws-audio'
+        }));
       }
     };
 
     peerConnRef.current = pc;
+    peerConnsRef.current.set(peerId, pc);
     return pc;
   };
 
@@ -800,6 +876,10 @@ export default function App() {
           }
           if (data.code === 'group-member-not-found') {
             window.alert('Selected user is not in this group anymore.');
+          }
+          if (data.code === 'group-call-not-active') {
+            autoJoinGroupIdRef.current = null;
+            window.alert('No ongoing call found in this group right now.');
           }
           if (data.code === 'invalid-group-name') {
             window.alert('Please enter a valid group name.');
@@ -873,6 +953,29 @@ export default function App() {
             setMessages([]);
             setShowInfoPanel(false);
           }
+          return;
+        }
+
+        if (data.action === 'group-call-status') {
+          setGroupCallStatus((prev) => ({
+            ...prev,
+            [data.groupId]: {
+              ongoing: Boolean(data.ongoing),
+              participants: data.participants || [],
+              participantCount: Number(data.participantCount || 0),
+              updatedAt: data.updatedAt || Date.now()
+            }
+          }));
+          return;
+        }
+
+        if (data.action === 'group-call-join-request') {
+          if (!localCallStreamRef.current || callState.groupId !== data.groupId) return;
+          const pc = createPeerConnection(data.from, data.groupId);
+          localCallStreamRef.current.getTracks().forEach((t) => pc.addTrack(t, localCallStreamRef.current));
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          ws.send('call-offer', { to: data.from, sdp: offer, groupId: data.groupId });
           return;
         }
 
@@ -1111,46 +1214,73 @@ export default function App() {
         }
 
         if (data.action === 'call-offer') {
-          const accepted = window.confirm('Incoming voice call. Accept?');
+          const shouldAutoJoin = Boolean(data.groupId && autoJoinGroupIdRef.current === data.groupId);
+          const incomingLabel = data.groupId ? 'Incoming group conference call. Accept?' : 'Incoming voice call. Accept?';
+          const accepted = shouldAutoJoin ? true : window.confirm(incomingLabel);
           if (!accepted) {
-            ws.send('call-end', { to: data.from, reason: 'declined' });
+            ws.send('call-end', { to: data.from, reason: 'declined', groupId: data.groupId || null });
             return;
           }
+          if (shouldAutoJoin) {
+            autoJoinGroupIdRef.current = null;
+          }
 
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          localCallStreamRef.current = stream;
-          const pc = createPeerConnection(data.from);
+          let stream = localCallStreamRef.current;
+          if (!stream) {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            localCallStreamRef.current = stream;
+          }
+          const pc = createPeerConnection(data.from, data.groupId || null);
           stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
           await pc.setRemoteDescription(data.sdp);
-          for (const candidate of pendingIceRef.current) {
+          const pendingForPeer = pendingIceRef.current.get(data.from) || [];
+          for (const candidate of pendingForPeer) {
             await pc.addIceCandidate(candidate).catch(() => {});
           }
-          pendingIceRef.current = [];
+          pendingIceRef.current.set(data.from, []);
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
-          ws.send('call-answer', { to: data.from, sdp: answer });
-          setCallState({ status: 'ringing', peerId: data.from, mode: 'webrtc' });
+          ws.send('call-answer', { to: data.from, sdp: answer, groupId: data.groupId || null });
+          setCallState((prev) => ({
+            status: 'ringing',
+            peerId: data.from,
+            peerIds: Array.from(new Set([...prev.peerIds, data.from])),
+            mode: 'webrtc',
+            groupId: data.groupId || prev.groupId || null,
+            conference: Boolean(data.groupId || prev.conference)
+          }));
           return;
         }
 
-        if (data.action === 'call-answer' && peerConnRef.current) {
-          await peerConnRef.current.setRemoteDescription(data.sdp);
-          for (const candidate of pendingIceRef.current) {
-            await peerConnRef.current.addIceCandidate(candidate).catch(() => {});
+        if (data.action === 'call-answer') {
+          const pc = peerConnsRef.current.get(data.from);
+          if (!pc) return;
+          await pc.setRemoteDescription(data.sdp);
+          const pendingForPeer = pendingIceRef.current.get(data.from) || [];
+          for (const candidate of pendingForPeer) {
+            await pc.addIceCandidate(candidate).catch(() => {});
           }
-          pendingIceRef.current = [];
-          setCallState({ status: 'connected', peerId: data.from, mode: 'webrtc' });
+          pendingIceRef.current.set(data.from, []);
+          setCallState((prev) => ({
+            ...prev,
+            status: 'connected',
+            peerId: data.from,
+            peerIds: Array.from(new Set([...prev.peerIds, data.from]))
+          }));
           return;
         }
 
-        if (data.action === 'call-ice' && peerConnRef.current && data.candidate) {
-          if (!peerConnRef.current.remoteDescription) {
-            pendingIceRef.current.push(data.candidate);
+        if (data.action === 'call-ice' && data.candidate) {
+          const pc = peerConnsRef.current.get(data.from);
+          if (!pc || !pc.remoteDescription) {
+            const queue = pendingIceRef.current.get(data.from) || [];
+            queue.push(data.candidate);
+            pendingIceRef.current.set(data.from, queue);
             return;
           }
           try {
-            await peerConnRef.current.addIceCandidate(data.candidate);
+            await pc.addIceCandidate(data.candidate);
           } catch {
             // candidate can race against SDP set
           }
@@ -1158,12 +1288,23 @@ export default function App() {
         }
 
         if (data.action === 'call-end') {
-          destroyCall();
+          closePeerConnection(data.from);
+          const remainingPeers = Array.from(peerConnsRef.current.keys());
+          if (!remainingPeers.length) {
+            destroyCall();
+            return;
+          }
+          setCallState((prev) => ({
+            ...prev,
+            peerId: remainingPeers[0],
+            peerIds: remainingPeers,
+            status: 'connected'
+          }));
           return;
         }
 
         if (data.action === 'call-fallback') {
-          setCallState({ status: 'fallback', peerId: data.from, mode: 'ws-audio' });
+          setCallState((prev) => ({ ...prev, status: 'fallback', peerId: data.from, mode: 'ws-audio' }));
         }
       }
     });
@@ -1224,10 +1365,19 @@ export default function App() {
     clearUnread(id);
     markConversationRecent(id);
     requestHistory(chat);
+    if (chat.type === 'group') {
+      wsRef.current?.send('group-call-status-request', { groupId: chat.id });
+    }
     if (isMobile) {
       setIsMessageOpen(true);
       setShowInfoPanel(false);
     }
+  };
+
+  const joinOngoingGroupCall = () => {
+    if (!active || active.type !== 'group') return;
+    autoJoinGroupIdRef.current = active.id;
+    wsRef.current?.send('group-call-join', { groupId: active.id });
   };
 
   const sendText = async () => {
@@ -1539,7 +1689,16 @@ export default function App() {
   };
 
   const startCall = async () => {
-    if (!active || active.type !== 'direct') return;
+    if (!active) return;
+
+    const peers = active.type === 'group'
+      ? activeGroupMembers.filter((member) => member.id !== profile.userId && member.online).map((member) => member.id)
+      : [active.id];
+
+    if (!peers.length) {
+      window.alert(active.type === 'group' ? 'No online group members available for conference call.' : 'User is not available for calling right now.');
+      return;
+    }
 
     let stream;
     try {
@@ -1550,19 +1709,31 @@ export default function App() {
     }
 
     localCallStreamRef.current = stream;
-    const pc = createPeerConnection(active.id);
-    stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+    const conferenceGroupId = active.type === 'group' ? active.id : null;
+    for (const peerId of peers) {
+      const pc = createPeerConnection(peerId, conferenceGroupId);
+      stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    wsRef.current?.send('call-offer', { to: active.id, sdp: offer });
-    setCallState({ status: 'calling', peerId: active.id, mode: 'webrtc' });
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      wsRef.current?.send('call-offer', { to: peerId, sdp: offer, groupId: conferenceGroupId });
+    }
+
+    setCallState({
+      status: 'calling',
+      peerId: peers[0],
+      peerIds: peers,
+      mode: 'webrtc',
+      groupId: conferenceGroupId,
+      conference: Boolean(conferenceGroupId)
+    });
   };
 
   const endCall = () => {
-    if (callState.peerId) {
-      wsRef.current?.send('call-end', { to: callState.peerId, reason: 'hangup' });
-    }
+    const peersToEnd = callState.peerIds.length ? callState.peerIds : (callState.peerId ? [callState.peerId] : []);
+    peersToEnd.forEach((peerId) => {
+      wsRef.current?.send('call-end', { to: peerId, reason: 'hangup', groupId: callState.groupId || null });
+    });
     destroyCall();
   };
 
@@ -1874,14 +2045,24 @@ export default function App() {
       ? 'Online'
       : 'Offline';
   const callPeer = users.find((u) => u.id === callState.peerId) || null;
-  const callName = callPeer?.username || (active?.type === 'direct' ? active.label : 'Unknown user');
+  const callName = callState.conference
+    ? `${activeGroupInfo?.group?.name || activeName} Conference`
+    : callPeer?.username || (active?.type === 'direct' ? active.label : 'Unknown user');
   const callStatusLabel = {
-    calling: 'Calling... ',
-    ringing: 'Ringing... ',
-    connected: 'Connected',
+    calling: callState.conference ? `Calling ${callState.peerIds.length} participant(s)...` : 'Calling... ',
+    ringing: callState.conference ? 'Joining conference...' : 'Ringing... ',
+    connected: callState.conference ? `${peerConnsRef.current.size} participant(s) connected` : 'Connected',
     fallback: 'Connected (fallback audio)'
-  }[callState.status] || 'Connecting...';
+  }[callState.status] || (callState.conference ? 'Starting conference...' : 'Connecting...');
   const callOverlayOpen = callState.status !== 'idle';
+  const viewedProfile = canEditOwnProfile
+    ? profile
+    : {
+        username: activeDirectUser?.username || activeName,
+        avatar: activeDirectUser?.avatar || '',
+        about: activeDirectUser?.about || 'No about set.',
+        online: Boolean(activeDirectUser?.online)
+      };
 
   const gridClass = [
     'main-grid',
@@ -1936,7 +2117,13 @@ export default function App() {
         <aside className="main-side">
           <header className="common-header">
             <div className="common-header-start">
-              <button className="u-flex js-user-nav" onClick={() => setShowInfoPanel(true)}>
+              <button
+                className="u-flex js-user-nav"
+                onClick={() => {
+                  setInfoPanelMode('self');
+                  setShowInfoPanel(true);
+                }}
+              >
                 <Avatar name={profile.username} avatar={profile.avatar} />
                 <div className="common-header-content">
                   <h1 className="common-header-title">{profile.username}</h1>
@@ -1946,7 +2133,7 @@ export default function App() {
             </div>
             <nav className="common-nav">
               <ul className="common-nav-list">
-                <li className="common-nav-item"><button className="common-button" onClick={() => setTheme(getSystemTheme())}><span className="icon icon-status" aria-label="status" /></button></li>
+                <li className="common-nav-item"><button className="common-button" onClick={toggleTheme}><span className="icon icon-status" aria-label="status" /></button></li>
                 <li className="common-nav-item"><button className={`common-button ${showDirectory ? 'is-active-control' : ''}`} onClick={() => setShowDirectory((v) => !v)}><span className="icon icon-new-chat" aria-label="new chat" /></button></li>
                 <li className="common-nav-item chat-side-overflow" ref={sideMenuRef}>
                   <button className="common-button" onClick={() => setSideMenuOpen((v) => !v)}><span className="icon icon-menu" aria-label="chat options" /></button>
@@ -1964,7 +2151,6 @@ export default function App() {
                     </div>
                   )}
                 </li>
-                <li className="common-nav-item"><button className="common-button" onClick={() => setShowInfoPanel((v) => !v)}><span className="icon icon-menu" aria-label="menu" /></button></li>
               </ul>
             </nav>
           </header>
@@ -2105,12 +2291,14 @@ export default function App() {
               <button
                 className="u-flex js-side-info-button"
                 onClick={() => {
+                  if (!active) return;
+                  setInfoPanelMode('chat');
                   if (active?.type === 'group') {
                     setShowInfoPanel(true);
                     wsRef.current?.send('group-meta-request', { groupId: active.id });
                     return;
                   }
-                  setShowInfoPanel((v) => !v);
+                  setShowInfoPanel(true);
                 }}
               >
                 <Avatar
@@ -2126,7 +2314,7 @@ export default function App() {
             <nav className="common-nav">
               <ul className="common-nav-list">
                 <li className="common-nav-item"><button className="common-button" onClick={() => setChatSearchQuery((q) => (q ? '' : search))}><span className="icon icon-search" aria-label="search" /></button></li>
-                <li className="common-nav-item"><button className="common-button" onClick={active?.type === 'direct' ? startCall : undefined}><span className="icon icon-phone" aria-label="call" /></button></li>
+                <li className="common-nav-item"><button className="common-button" onClick={active ? startCall : undefined}><span className="icon icon-phone" aria-label="call" /></button></li>
                 <li className="common-nav-item chat-overflow" ref={chatMenuRef}>
                   <button className="common-button" onClick={() => setChatMenuOpen((v) => !v)}><span className="icon icon-menu" aria-label="menu" /></button>
                   {chatMenuOpen && (
@@ -2280,10 +2468,10 @@ export default function App() {
           <header className="common-header">
             <button className="common-button js-close-main-info" onClick={() => setShowInfoPanel(false)}><span className="icon icon-close" aria-label="close" /></button>
             <div className="common-header-content">
-              <h3 className="common-header-title">{active?.type === 'group' ? 'Group Info' : 'Profile'}</h3>
+              <h3 className="common-header-title">{infoPanelMode === 'chat' && active?.type === 'group' ? 'Group Info' : infoPanelMode === 'chat' ? 'User Profile' : 'Profile'}</h3>
             </div>
           </header>
-          {active?.type === 'group' ? (
+          {infoPanelMode === 'chat' && active?.type === 'group' ? (
             <div className="main-info-content wa-profile-content">
               <section className="wa-profile-hero">
                 <Avatar
@@ -2385,68 +2573,93 @@ export default function App() {
           ) : (
             <div className="main-info-content wa-profile-content">
               <section className="wa-profile-hero">
-                <button className="wa-profile-photo-button" onClick={triggerProfilePhotoPicker} type="button" title="Click to change profile photo">
-                  <Avatar name={profile.username} avatar={profile.avatar} className="main-info-image" />
-                </button>
-                <h4 className="wa-profile-name">{profile.username}</h4>
+                {canEditOwnProfile ? (
+                  <button className="wa-profile-photo-button" onClick={triggerProfilePhotoPicker} type="button" title="Click to change profile photo">
+                    <Avatar name={viewedProfile.username} avatar={viewedProfile.avatar} className="main-info-image" />
+                  </button>
+                ) : (
+                  <Avatar name={viewedProfile.username} avatar={viewedProfile.avatar} className="main-info-image" />
+                )}
+                <h4 className="wa-profile-name">{viewedProfile.username}</h4>
               </section>
 
               <section className="wa-profile-group">
-                <article className="wa-profile-row">
-                  <p className="wa-profile-label">Name</p>
-                  <input
-                    className="wa-profile-input"
-                    maxLength={30}
-                    value={nameDraft}
-                    onChange={(e) => setNameDraft(e.target.value)}
-                  />
-                  <button className="common-button wa-profile-save" onClick={saveProfileName}>Save</button>
-                </article>
-                <article className="wa-profile-row">
-                  <p className="wa-profile-label">About</p>
-                  <input
-                    className="wa-profile-input"
-                    maxLength={120}
-                    value={aboutDraft}
-                    onChange={(e) => setAboutDraft(e.target.value)}
-                  />
-                  <button className="common-button wa-profile-save" onClick={saveAbout}>Save</button>
-                </article>
-                <article className="wa-profile-row">
-                  <p className="wa-profile-label">Change PIN</p>
-                  <input
-                    className="wa-profile-input"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={6}
-                    value={newPinDraft}
-                    onChange={(e) => setNewPinDraft(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="New PIN (4 or 6 digits)"
-                  />
-                  <input
-                    className="wa-profile-input"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={6}
-                    value={newPinConfirmDraft}
-                    onChange={(e) => setNewPinConfirmDraft(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="Confirm PIN"
-                  />
-                  <p className="wa-profile-hint">Use 4 digits or 6 digits.</p>
-                  <button className="common-button wa-profile-save" onClick={() => void saveProfilePin()}>Update PIN</button>
-                </article>
+                {canEditOwnProfile ? (
+                  <>
+                    <article className="wa-profile-row">
+                      <p className="wa-profile-label">Name</p>
+                      <input
+                        className="wa-profile-input"
+                        maxLength={30}
+                        value={nameDraft}
+                        onChange={(e) => setNameDraft(e.target.value)}
+                      />
+                      <button className="common-button wa-profile-save" onClick={saveProfileName}>Save</button>
+                    </article>
+                    <article className="wa-profile-row">
+                      <p className="wa-profile-label">About</p>
+                      <input
+                        className="wa-profile-input"
+                        maxLength={120}
+                        value={aboutDraft}
+                        onChange={(e) => setAboutDraft(e.target.value)}
+                      />
+                      <button className="common-button wa-profile-save" onClick={saveAbout}>Save</button>
+                    </article>
+                    <article className="wa-profile-row">
+                      <p className="wa-profile-label">Change PIN</p>
+                      <input
+                        className="wa-profile-input"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={6}
+                        value={newPinDraft}
+                        onChange={(e) => setNewPinDraft(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="New PIN (4 or 6 digits)"
+                      />
+                      <input
+                        className="wa-profile-input"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={6}
+                        value={newPinConfirmDraft}
+                        onChange={(e) => setNewPinConfirmDraft(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="Confirm PIN"
+                      />
+                      <p className="wa-profile-hint">Use 4 digits or 6 digits.</p>
+                      <button className="common-button wa-profile-save" onClick={() => void saveProfilePin()}>Update PIN</button>
+                    </article>
+                  </>
+                ) : (
+                  <>
+                    <article className="wa-profile-row">
+                      <p className="wa-profile-label">Name</p>
+                      <p className="wa-profile-value">{viewedProfile.username}</p>
+                    </article>
+                    <article className="wa-profile-row">
+                      <p className="wa-profile-label">About</p>
+                      <p className="wa-profile-value">{viewedProfile.about}</p>
+                    </article>
+                    <article className="wa-profile-row">
+                      <p className="wa-profile-label">Status</p>
+                      <p className="wa-profile-value">{viewedProfile.online ? 'Online' : 'Offline'}</p>
+                    </article>
+                  </>
+                )}
                 <article className="wa-profile-row">
                   <p className="wa-profile-label">Encryption</p>
                   <p className="wa-profile-value">AES-GCM</p>
                 </article>
               </section>
 
-              <section className="wa-profile-group">
-                <div className="profile-photo-actions">
-                  <button className="common-button profile-photo-button" onClick={triggerProfilePhotoPicker}>Change profile photo</button>
-                  {profile.avatar && <button className="common-button profile-photo-remove" onClick={clearProfilePhoto}>Remove photo</button>}
-                </div>
-              </section>
+              {canEditOwnProfile && (
+                <section className="wa-profile-group">
+                  <div className="profile-photo-actions">
+                    <button className="common-button profile-photo-button" onClick={triggerProfilePhotoPicker}>Change profile photo</button>
+                    {profile.avatar && <button className="common-button profile-photo-remove" onClick={clearProfilePhoto}>Remove photo</button>}
+                  </div>
+                </section>
+              )}
             </div>
           )}
         </aside>
