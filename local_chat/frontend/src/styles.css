@@ -1053,6 +1053,25 @@ body::before {
   background: rgba(0, 0, 0, 0.55);
 }
 
+.auth-page {
+  min-height: calc(var(--app-vh, 1vh) * 100);
+  width: 100%;
+  display: grid;
+  place-items: center;
+  padding: 28px 18px;
+  background:
+    radial-gradient(circle at 12% 14%, rgba(0, 168, 132, 0.26), transparent 36%),
+    radial-gradient(circle at 88% 82%, rgba(0, 94, 84, 0.24), transparent 42%),
+    linear-gradient(160deg, #0b141a 0%, #102027 48%, #0b141a 100%);
+}
+
+[data-theme='dark'] .auth-page {
+  background:
+    radial-gradient(circle at 12% 14%, rgba(83, 189, 235, 0.24), transparent 36%),
+    radial-gradient(circle at 88% 82%, rgba(0, 92, 75, 0.2), transparent 42%),
+    linear-gradient(160deg, #0b141a 0%, #111b21 48%, #0b141a 100%);
+}
+
 .wizard-card {
   width: min(480px, 92vw);
   border-radius: 14px;
@@ -1127,6 +1146,7 @@ body::before {
 
 .auth-card {
   max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
 }
 
 .auth-actions {
@@ -1137,6 +1157,14 @@ body::before {
 
 .auth-old-user {
   border: 1px solid var(--border);
+}
+
+.group-dialog {
+  max-width: 460px;
+}
+
+.group-dialog-actions {
+  justify-content: flex-end;
 }
 
 .hidden-file-input {

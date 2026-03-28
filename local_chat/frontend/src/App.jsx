@@ -214,6 +214,9 @@ export default function App() {
   const [voiceWaveform, setVoiceWaveform] = useState([]);
   const [voiceDraft, setVoiceDraft] = useState({ blob: null, url: '', mimeType: 'audio/webm' });
   const [profilePin, setProfilePin] = useState('');
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [groupNameDraft, setGroupNameDraft] = useState('');
+  const [groupMembersDraft, setGroupMembersDraft] = useState('');
 
   const wsRef = useRef(null);
   const profileRef = useRef(profile);
@@ -1104,24 +1107,39 @@ export default function App() {
     sendTyping(false);
   };
 
-  const createGroup = () => {
-    const name = window.prompt('Group name');
-    if (!name) return;
-
-    const memberInput = window.prompt('Add members by username or user ID (comma separated)', '');
+  const resolveMembersFromInput = (memberInput) => {
     const typed = (memberInput || '')
       .split(',')
       .map((v) => v.trim())
       .filter(Boolean);
 
-    const members = typed
+    return typed
       .map((entry) => {
         const byName = visibleUsers.find((u) => u.username.toLowerCase() === entry.toLowerCase());
         return byName?.id || entry;
       })
       .filter((id) => id !== profile.userId);
+  };
+
+  const openCreateGroupDialog = () => {
+    setGroupNameDraft('');
+    setGroupMembersDraft('');
+    setGroupDialogOpen(true);
+  };
+
+  const createGroup = () => {
+    const name = groupNameDraft.trim();
+    if (!name) {
+      window.alert('Please enter a group name.');
+      return;
+    }
+
+    const members = resolveMembersFromInput(groupMembersDraft);
 
     wsRef.current?.send('create-group', { name, members });
+    setGroupDialogOpen(false);
+    setGroupNameDraft('');
+    setGroupMembersDraft('');
   };
 
   const addMembersToActiveGroup = () => {
@@ -1129,15 +1147,7 @@ export default function App() {
     const memberInput = window.prompt('Add members by username or user ID (comma separated)', '');
     if (!memberInput) return;
 
-    const members = memberInput
-      .split(',')
-      .map((v) => v.trim())
-      .filter(Boolean)
-      .map((entry) => {
-        const byName = visibleUsers.find((u) => u.username.toLowerCase() === entry.toLowerCase());
-        return byName?.id || entry;
-      })
-      .filter((id) => id !== profile.userId);
+    const members = resolveMembersFromInput(memberInput);
 
     if (!members.length) return;
     wsRef.current?.send('add-group-members', { groupId: active.id, members });
@@ -1614,6 +1624,7 @@ export default function App() {
 
   return (
     <>
+      {!authScreenOpen && (
       <section className={gridClass}>
         <aside className="main-side">
           <header className="common-header">
@@ -1653,7 +1664,7 @@ export default function App() {
           <section className="chats">
             {showDirectory && (
               <div className="directory-actions">
-                <button className="common-button directory-create-group" onClick={createGroup}>+ New Group</button>
+                <button className="common-button directory-create-group" onClick={openCreateGroupDialog}>+ New Group</button>
               </div>
             )}
             <ul className="chats-list">
@@ -1954,9 +1965,10 @@ export default function App() {
           </div>
         </aside>
       </section>
+      )}
 
       {authScreenOpen && (
-        <div className="wizard-overlay">
+        <section className="auth-page">
           <div className="wizard-card auth-card">
             <h2>Welcome to LAN Messenger</h2>
             <p>{authMode === 'signup' ? 'Create a new account to start chatting.' : 'Login with your 4-digit PIN to continue.'}</p>
@@ -2022,10 +2034,43 @@ export default function App() {
               </>
             )}
           </div>
+        </section>
+      )}
+
+      {!authScreenOpen && groupDialogOpen && (
+        <div className="wizard-overlay" onClick={() => setGroupDialogOpen(false)}>
+          <div className="wizard-card group-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2>Create New Group</h2>
+            <p>Add a name and optional members (username or user ID, comma separated).</p>
+            <label>
+              Group Name
+              <input
+                className="text-input wizard-input"
+                value={groupNameDraft}
+                maxLength={40}
+                onChange={(e) => setGroupNameDraft(e.target.value)}
+                placeholder="Team chat"
+              />
+            </label>
+            <label>
+              Members (optional)
+              <input
+                className="text-input wizard-input"
+                value={groupMembersDraft}
+                maxLength={280}
+                onChange={(e) => setGroupMembersDraft(e.target.value)}
+                placeholder="alice, bob, user-id-123"
+              />
+            </label>
+            <div className="wizard-actions group-dialog-actions">
+              <button className="common-button" onClick={() => setGroupDialogOpen(false)}>Cancel</button>
+              <button className="common-button wizard-save" onClick={createGroup}>Create Group</button>
+            </div>
+          </div>
         </div>
       )}
 
-      {onboardingOpen && (
+      {!authScreenOpen && onboardingOpen && (
         <div className="wizard-overlay">
           <div className="wizard-card">
             <h2>Welcome to LAN Messenger</h2>
