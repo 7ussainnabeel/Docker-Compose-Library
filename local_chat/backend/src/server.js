@@ -390,7 +390,6 @@ wss.on('connection', (ws) => {
         'create-group',
         'group-meta-request',
         'group-rename',
-        'group-avatar-update',
         'add-group-members',
         'remove-group-member',
         'set-group-member-role',
@@ -537,10 +536,10 @@ wss.on('connection', (ws) => {
       const members = Array.isArray(data.members) ? data.members : [];
       const uniqueMembers = Array.from(new Set([ws.userId, ...members])).slice(0, MAX_GROUP_MEMBERS);
 
-      statements.insertGroup.run(groupId, name, null, ws.userId, Date.now());
+      statements.insertGroup.run(groupId, name, ws.userId, Date.now());
       uniqueMembers.forEach((memberId) => statements.addMember.run(groupId, memberId, memberId === ws.userId ? 'admin' : 'member'));
 
-      const event = { action: 'group-created', group: { id: groupId, name, avatar: null, created_by: ws.userId, created_at: Date.now() } };
+      const event = { action: 'group-created', group: { id: groupId, name, created_by: ws.userId, created_at: Date.now() } };
       uniqueMembers.forEach((memberId) => enqueueOrSend(memberId, event));
       broadcastGroupMeta(groupId, ws.userId);
       audit('group-created', ws.userId, ws.remoteIp, { groupId, size: uniqueMembers.length });
@@ -594,30 +593,6 @@ wss.on('connection', (ws) => {
       statements.renameGroup.run(name, data.groupId);
       broadcastGroupMeta(data.groupId, ws.userId);
       audit('group-renamed', ws.userId, ws.remoteIp, { groupId: data.groupId });
-      return;
-    }
-
-    if (action === 'group-avatar-update') {
-      if (!data.groupId) {
-        safeSend(ws, { action: 'error', code: 'group-not-found' });
-        return;
-      }
-
-      if (!isGroupMember(data.groupId, ws.userId)) {
-        safeSend(ws, { action: 'error', code: 'forbidden-group-access' });
-        audit('forbidden-group-access', ws.userId, ws.remoteIp, { action, groupId: data.groupId });
-        return;
-      }
-
-      const avatar = typeof data.avatar === 'string' ? data.avatar : '';
-      if (avatar.length > 180000) {
-        safeSend(ws, { action: 'error', code: 'invalid-group-avatar' });
-        return;
-      }
-
-      statements.setGroupAvatar.run(avatar || null, data.groupId);
-      broadcastGroupMeta(data.groupId, ws.userId);
-      audit('group-avatar-updated', ws.userId, ws.remoteIp, { groupId: data.groupId, hasAvatar: Boolean(avatar) });
       return;
     }
 
@@ -731,9 +706,36 @@ wss.on('connection', (ws) => {
     }
 
     if (action === 'history-request') {
+      const limit = Math.max(20, Math.min(Number(data.limit) || 120, 300));
+      const before = Number(data.before);
+      const hasBefore = Number.isFinite(before) && before > 0;
+
       if (data.peerId) {
-        const messages = statements.directHistory.all({ me: ws.userId, peer: data.peerId });
-        safeSend(ws, { action: 'history-response', peerId: data.peerId, messages });
+        const messages = hasBefore
+          ? db.prepare(`
+              SELECT * FROM messages
+              WHERE kind IN ('direct-text', 'direct-photo', 'voice-note')
+              AND (
+                (from_user = @me AND to_user = @peer) OR
+                (from_user = @peer AND to_user = @me)
+              )
+              AND created_at < @before
+              ORDER BY created_at DESC
+              LIMIT @limit
+            `).all({ me: ws.userId, peer: data.peerId, before, limit })
+          : db.prepare(`
+              SELECT * FROM messages
+              WHERE kind IN ('direct-text', 'direct-photo', 'voice-note')
+              AND (
+                (from_user = @me AND to_user = @peer) OR
+                (from_user = @peer AND to_user = @me)
+              )
+              ORDER BY created_at DESC
+              LIMIT @limit
+            `).all({ me: ws.userId, peer: data.peerId, limit });
+
+        const ordered = messages.reverse();
+        safeSend(ws, { action: 'history-response', peerId: data.peerId, messages: ordered, hasMore: messages.length === limit });
         return;
       }
 
@@ -744,8 +746,25 @@ wss.on('connection', (ws) => {
           return;
         }
 
-        const messages = statements.groupHistory.all(data.groupId);
-        safeSend(ws, { action: 'history-response', groupId: data.groupId, messages });
+        const messages = hasBefore
+          ? db.prepare(`
+              SELECT * FROM messages
+              WHERE kind IN ('group-text', 'group-photo', 'voice-note')
+              AND group_id = @groupId
+              AND created_at < @before
+              ORDER BY created_at DESC
+              LIMIT @limit
+            `).all({ groupId: data.groupId, before, limit })
+          : db.prepare(`
+              SELECT * FROM messages
+              WHERE kind IN ('group-text', 'group-photo', 'voice-note')
+              AND group_id = @groupId
+              ORDER BY created_at DESC
+              LIMIT @limit
+            `).all({ groupId: data.groupId, limit });
+
+        const ordered = messages.reverse();
+        safeSend(ws, { action: 'history-response', groupId: data.groupId, messages: ordered, hasMore: messages.length === limit });
       }
       return;
     }
@@ -1086,6 +1105,387 @@ wss.on('connection', (ws) => {
       }
 
       audit(action, ws.userId, ws.remoteIp, { clipId: data.clipId, to: event.to, groupId: event.groupId });
+      return;
+    }
+
+    if (action === 'message-forward') {
+      if (!data.messageId || !data.toGroupId && !data.toPeerId) return;
+
+      try {
+        const msg = db.prepare('SELECT * FROM messages WHERE id = ?').get(data.messageId);
+        if (!msg) return;
+
+        const newMsgId = uuidv4();
+        const newMsg = {
+          id: newMsgId,
+          kind: data.toGroupId ? 'group-text' : 'direct-text',
+          from_user: ws.userId,
+          to_user: data.toPeerId || null,
+          group_id: data.toGroupId || null,
+          payload: msg.payload,
+          mime_type: msg.mime_type,
+          created_at: Date.now(),
+          forwarded_from_id: msg.id,
+          forwarded_from_user: msg.from_user
+        };
+
+        statements.insertMessage.run(newMsg);
+
+        const event = {
+          action: 'message',
+          ...newMsg,
+          replyTo: null,
+          reaction: '',
+          starred: false
+        };
+
+        if (data.toPeerId) {
+          enqueueOrSend(data.toPeerId, event);
+        } else if (data.toGroupId) {
+          const members = groupMembers(data.toGroupId).filter((id) => id !== ws.userId);
+          members.forEach((memberId) => enqueueOrSend(memberId, event));
+        }
+
+        safeSend(ws, { action: 'message-forward-ack', messageId: newMsgId });
+        audit('message-forward', ws.userId, ws.remoteIp, { fromMsgId: data.messageId });
+      } catch {
+        safeSend(ws, { action: 'error', code: 'forward-failed' });
+      }
+      return;
+    }
+
+    if (action === 'message-edit') {
+      if (!data.messageId || !data.editedText) return;
+
+      try {
+        const msg = db.prepare('SELECT * FROM messages WHERE id = ?').get(data.messageId);
+        if (!msg || msg.from_user !== ws.userId) return;
+
+        statements.editMessage.run(data.editedText, Date.now(), data.messageId);
+
+        const event = {
+          action: 'message-edited',
+          messageId: data.messageId,
+          editedText: data.editedText,
+          editedAt: Date.now()
+        };
+
+        if (msg.to_user) {
+          enqueueOrSend(msg.to_user, event);
+        } else if (msg.group_id) {
+          const members = groupMembers(msg.group_id).filter((id) => id !== ws.userId);
+          members.forEach((memberId) => enqueueOrSend(memberId, event));
+        }
+
+        safeSend(ws, { action: 'message-edit-ack', messageId: data.messageId });
+        audit('message-edit', ws.userId, ws.remoteIp, { messageId: data.messageId });
+      } catch {
+        safeSend(ws, { action: 'error', code: 'edit-failed' });
+      }
+      return;
+    }
+
+    if (action === 'message-delete-for-me') {
+      if (!data.messageId) return;
+
+      try {
+        statements.deleteMessageForMe.run(data.messageId);
+        safeSend(ws, { action: 'message-delete-ack', messageId: data.messageId });
+        audit('message-delete-for-me', ws.userId, ws.remoteIp, { messageId: data.messageId });
+      } catch {
+        safeSend(ws, { action: 'error', code: 'delete-failed' });
+      }
+      return;
+    }
+
+    if (action === 'message-delete-for-all') {
+      if (!data.messageId) return;
+
+      try {
+        const msg = db.prepare('SELECT * FROM messages WHERE id = ?').get(data.messageId);
+        if (!msg || msg.from_user !== ws.userId) return;
+
+        statements.deleteMessageForAll.run(data.messageId);
+
+        const event = {
+          action: 'message-deleted',
+          messageId: data.messageId
+        };
+
+        if (msg.to_user) {
+          enqueueOrSend(msg.to_user, event);
+        } else if (msg.group_id) {
+          const members = groupMembers(msg.group_id).filter((id) => id !== ws.userId);
+          members.forEach((memberId) => enqueueOrSend(memberId, event));
+        }
+
+        safeSend(ws, { action: 'message-delete-ack', messageId: data.messageId });
+        audit('message-delete-for-all', ws.userId, ws.remoteIp, { messageId: data.messageId });
+      } catch {
+        safeSend(ws, { action: 'error', code: 'delete-failed' });
+      }
+      return;
+    }
+
+    if (action === 'message-pin') {
+      if (!data.messageId) return;
+
+      try {
+        const msg = db.prepare('SELECT * FROM messages WHERE id = ?').get(data.messageId);
+        if (!msg) return;
+
+        const isAdmin = db.prepare(
+          'SELECT role FROM group_members WHERE group_id = ? AND user_id = ?'
+        ).get(msg.group_id, ws.userId)?.role === 'admin';
+
+        if (msg.group_id && !isAdmin && msg.from_user !== ws.userId) return;
+
+        statements.pinMessage.run(Date.now(), data.messageId);
+
+        const event = {
+          action: 'message-pinned',
+          messageId: data.messageId,
+          pinnedAt: Date.now()
+        };
+
+        if (msg.group_id) {
+          const members = groupMembers(msg.group_id);
+          members.forEach((memberId) => enqueueOrSend(memberId, event));
+        } else if (msg.to_user) {
+          enqueueOrSend(msg.to_user, event);
+        }
+
+        safeSend(ws, { action: 'message-pin-ack', messageId: data.messageId });
+        audit('message-pin', ws.userId, ws.remoteIp, { messageId: data.messageId });
+      } catch {
+        safeSend(ws, { action: 'error', code: 'pin-failed' });
+      }
+      return;
+    }
+
+    if (action === 'message-unpin') {
+      if (!data.messageId) return;
+
+      try {
+        const msg = db.prepare('SELECT * FROM messages WHERE id = ?').get(data.messageId);
+        if (!msg) return;
+
+        const isAdmin = db.prepare(
+          'SELECT role FROM group_members WHERE group_id = ? AND user_id = ?'
+        ).get(msg.group_id, ws.userId)?.role === 'admin';
+
+        if (msg.group_id && !isAdmin && msg.from_user !== ws.userId) return;
+
+        statements.unpinMessage.run(data.messageId);
+
+        const event = {
+          action: 'message-unpinned',
+          messageId: data.messageId
+        };
+
+        if (msg.group_id) {
+          const members = groupMembers(msg.group_id);
+          members.forEach((memberId) => enqueueOrSend(memberId, event));
+        } else if (msg.to_user) {
+          enqueueOrSend(msg.to_user, event);
+        }
+
+        safeSend(ws, { action: 'message-unpin-ack', messageId: data.messageId });
+        audit('message-unpin', ws.userId, ws.remoteIp, { messageId: data.messageId });
+      } catch {
+        safeSend(ws, { action: 'error', code: 'unpin-failed' });
+      }
+      return;
+    }
+
+    if (action === 'get-pinned-messages') {
+      if (!data.groupId && !data.peerId) return;
+
+      try {
+        let pinned = [];
+        if (data.groupId) {
+          pinned = statements.getPinnedMessagesForGroup.all(data.groupId);
+        } else {
+          pinned = statements.getPinnedMessagesForDirect.all({ me: ws.userId, peer: data.peerId });
+        }
+
+        safeSend(ws, {
+          action: 'pinned-messages-list',
+          groupId: data.groupId,
+          peerId: data.peerId,
+          messages: pinned
+        });
+        audit('get-pinned-messages', ws.userId, ws.remoteIp, { groupId: data.groupId, peerId: data.peerId });
+      } catch {
+        safeSend(ws, { action: 'error', code: 'get-pinned-failed' });
+      }
+      return;
+    }
+
+    if (action === 'call-recording-start') {
+      if (!data.groupId && !data.peerId) return;
+
+      try {
+        const recordingId = uuidv4();
+        const now = Date.now();
+        const participants = data.groupId
+          ? [ws.userId, ...groupMembers(data.groupId)].filter(Boolean)
+          : [ws.userId, data.peerId].filter(Boolean);
+
+        // Store recording metadata
+        const recordingData = {
+          id: recordingId,
+          initiator_id: ws.userId,
+          kind: data.groupId ? 'group' : 'direct',
+          group_id: data.groupId || null,
+          peer_id: data.peerId || null,
+          recording_url: null,
+          duration_ms: 0,
+          file_size: 0,
+          created_at: now
+        };
+
+        db.prepare(`
+          INSERT INTO recorded_calls (id, initiator_id, kind, group_id, peer_id, created_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(recordingData.id, recordingData.initiator_id, recordingData.kind, recordingData.group_id, recordingData.peer_id, recordingData.created_at);
+
+        participants.forEach((userId) => {
+          db.prepare(`
+            INSERT OR IGNORE INTO call_participants (call_id, user_id, joined_at)
+            VALUES (?, ?, ?)
+          `).run(recordingId, userId, now);
+        });
+
+        const event = {
+          action: 'recording-started',
+          recordingId: recordingId,
+          initiatorId: ws.userId,
+          createdAt: now
+        };
+
+        if (data.groupId) {
+          const members = groupMembers(data.groupId);
+          members.forEach((memberId) => enqueueOrSend(memberId, event));
+        } else if (data.peerId) {
+          enqueueOrSend(data.peerId, event);
+        }
+
+        safeSend(ws, { action: 'recording-start-ack', recordingId: recordingId });
+        audit('call-recording-start', ws.userId, ws.remoteIp, { groupId: data.groupId, peerId: data.peerId });
+      } catch (error) {
+        safeSend(ws, { action: 'error', code: 'recording-start-failed', message: error.message });
+      }
+      return;
+    }
+
+    if (action === 'call-recording-stop') {
+      if (!data.recordingId) return;
+
+      try {
+        const recording = db.prepare('SELECT * FROM recorded_calls WHERE id = ?').get(data.recordingId);
+        if (!recording || recording.initiator_id !== ws.userId) return;
+
+        const durationMs = data.durationMs || Date.now() - recording.created_at;
+
+        db.prepare(`
+          UPDATE recorded_calls SET duration_ms = ?, recording_url = ?, file_size = ? WHERE id = ?
+        `).run(durationMs, data.recordingUrl || null, data.fileSize || 0, data.recordingId);
+
+        // Mark all participants as left
+        db.prepare(`
+          UPDATE call_participants SET left_at = ? WHERE call_id = ? AND left_at IS NULL
+        `).run(Date.now(), data.recordingId);
+
+        const event = {
+          action: 'recording-stopped',
+          recordingId: data.recordingId,
+          durationMs: durationMs,
+          recordingUrl: data.recordingUrl || null
+        };
+
+        if (recording.group_id) {
+          const members = groupMembers(recording.group_id);
+          members.forEach((memberId) => enqueueOrSend(memberId, event));
+        } else {
+          enqueueOrSend(recording.peer_id, event);
+        }
+
+        safeSend(ws, { action: 'recording-stop-ack', recordingId: data.recordingId });
+        audit('call-recording-stop', ws.userId, ws.remoteIp, { recordingId: data.recordingId });
+      } catch (error) {
+        safeSend(ws, { action: 'error', code: 'recording-stop-failed' });
+      }
+      return;
+    }
+
+    if (action === 'get-call-recordings') {
+      if (!data.groupId && !data.peerId) return;
+
+      try {
+        let recordings = [];
+        if (data.groupId) {
+          recordings = statements.getRecordingsForGroup.all(data.groupId);
+        } else {
+          recordings = statements.getRecordingsForDirect.all(data.peerId, ws.userId);
+        }
+
+        safeSend(ws, {
+          action: 'call-recordings-list',
+          groupId: data.groupId,
+          peerId: data.peerId,
+          recordings: recordings
+        });
+        audit('get-call-recordings', ws.userId, ws.remoteIp, { groupId: data.groupId, peerId: data.peerId });
+      } catch {
+        safeSend(ws, { action: 'error', code: 'get-recordings-failed' });
+      }
+      return;
+    }
+
+    if (action === 'temp-chat-expire') {
+      if (!data.conversationKey) return;
+
+      try {
+        // Delete all messages in the conversation
+        const tempSettings = db.prepare(
+          'SELECT * FROM temp_chat_settings WHERE conversation_key = ?'
+        ).get(data.conversationKey);
+
+        if (!tempSettings) return;
+
+        if (tempSettings.kind === 'direct') {
+          db.prepare(`
+            DELETE FROM messages
+            WHERE (
+              (from_user = ? AND to_user = ?) OR
+              (from_user = ? AND to_user = ?)
+            )
+          `).run(tempSettings.peer_a, tempSettings.peer_b, tempSettings.peer_b, tempSettings.peer_a);
+        } else if (tempSettings.kind === 'group') {
+          db.prepare('DELETE FROM messages WHERE group_id = ?').run(tempSettings.group_id);
+        }
+
+        // Delete temp settings
+        statements.deleteTempByKey.run(data.conversationKey);
+
+        const event = {
+          action: 'temp-chat-expired',
+          conversationKey: data.conversationKey
+        };
+
+        if (tempSettings.kind === 'direct') {
+          enqueueOrSend(tempSettings.peer_a, event);
+          enqueueOrSend(tempSettings.peer_b, event);
+        } else {
+          const members = groupMembers(tempSettings.group_id);
+          members.forEach((memberId) => enqueueOrSend(memberId, event));
+        }
+
+        audit('temp-chat-expire', ws.userId, ws.remoteIp, { conversationKey: data.conversationKey });
+      } catch {
+        safeSend(ws, { action: 'error', code: 'temp-chat-expire-failed' });
+      }
       return;
     }
 

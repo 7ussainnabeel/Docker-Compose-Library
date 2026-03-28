@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { decryptBytes, decryptJson, encryptBytes, encryptJson } from './lib/crypto';
 import {
+  countMessagesByConversation,
   deleteMessageById,
   deleteMessagesByConversation,
   loadMessageById,
-  loadMessagesByConversation,
+  loadMessagesByConversationPaged,
   loadSetting,
   saveMessage,
   saveSetting
@@ -68,6 +69,16 @@ function convKey(active, meId) {
 function fmtTime(ms) {
   if (!ms) return '';
   return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDuration(ms) {
+  if (!ms || ms < 0) return '00:00';
+  const totalSeconds = Math.floor(ms / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 function initials(name) {
@@ -247,6 +258,26 @@ export default function App() {
   const [onboardingPinConfirm, setOnboardingPinConfirm] = useState('');
   const [signupPinField, setSignupPinField] = useState('create');
 
+  // Message action states
+  const [messageEditingId, setMessageEditingId] = useState(null);
+  const [messageEditText, setMessageEditText] = useState('');
+  const [messageForwardingId, setMessageForwardingId] = useState(null);
+  const [forwardDestType, setForwardDestType] = useState('group');
+  const [forwardDestId, setForwardDestId] = useState('');
+  const [showPinnedMessages, setShowPinnedMessages] = useState(false);
+  const [pinnedMessages, setPinnedMessages] = useState([]);
+  const [tempChatCountdown, setTempChatCountdown] = useState(null);
+  const [recordingCall, setRecordingCall] = useState(null);
+  const [callRecordings, setCallRecordings] = useState([]);
+  const [showRecordingPanel, setShowRecordingPanel] = useState(false);
+  const [walkieTalkieMode, setWalkieTalkieMode] = useState(false);
+  const [walkiePressed, setWalkiePressed] = useState(false);
+  const [walkieAutoSendPending, setWalkieAutoSendPending] = useState(false);
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
+  const [oldestLoadedCreatedAt, setOldestLoadedCreatedAt] = useState(null);
+  const [historyPageLimit] = useState(120);
+
   const wsRef = useRef(null);
   const profileRef = useRef(profile);
   const callStateRef = useRef(callState);
@@ -260,7 +291,6 @@ export default function App() {
   const incomingVoiceRef = useRef(new Map());
   const typingTimers = useRef(new Map());
   const profilePhotoInputRef = useRef(null);
-  const groupPhotoInputRef = useRef(null);
   const readReceiptSentRef = useRef(new Set());
 
   const peerConnRef = useRef(null);
@@ -287,7 +317,6 @@ export default function App() {
   const activeConversationKey = convKey(active, profile.userId);
   const visibleUsers = useMemo(() => users.filter((u) => u.id !== profile.userId), [users, profile.userId]);
   const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
-  const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups]);
   const activeGroup = useMemo(
     () => (active?.type === 'group' ? groups.find((g) => g.id === active.id) || null : null),
     [active, groups]
@@ -300,14 +329,9 @@ export default function App() {
 
   const activeGroupMembers = activeGroupInfo?.members || [];
   const activeGroupCall = active?.type === 'group' ? groupCallStatus[active.id] : null;
-  const isInActiveGroupCall = Boolean(
-    active?.type === 'group'
-    && activeGroupCall?.participants?.includes(profile.userId)
-  );
   const canJoinOngoingGroupCall = Boolean(
     active?.type === 'group'
     && activeGroupCall?.ongoing
-    && !isInActiveGroupCall
     && (!callState.groupId || callState.groupId !== active.id)
   );
   const myActiveGroupMember = activeGroupMembers.find((member) => member.id === profile.userId) || null;
@@ -379,6 +403,31 @@ export default function App() {
   }, [messages, chatSearchQuery]);
 
   const activeTempSetting = activeConversationKey ? tempChatSettings[activeConversationKey] : null;
+
+  useEffect(() => {
+    if (!activeConversationKey || !activeTempSetting?.expiresAt) {
+      setTempChatCountdown(null);
+      return;
+    }
+
+    const tick = () => {
+      const remaining = Math.max(0, activeTempSetting.expiresAt - Date.now());
+      setTempChatCountdown(remaining);
+      if (remaining === 0) {
+        wsRef.current?.send('temp-chat-expire', { conversationKey: activeConversationKey });
+      }
+    };
+
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [activeConversationKey, activeTempSetting?.expiresAt]);
+
+  useEffect(() => {
+    if (!walkieAutoSendPending || !voiceDraft.blob || isRecordingVoice) return;
+    setWalkieAutoSendPending(false);
+    void sendRecordedVoice();
+  }, [walkieAutoSendPending, voiceDraft.blob, isRecordingVoice]);
 
   useEffect(() => {
     profileRef.current = profile;
@@ -578,19 +627,26 @@ export default function App() {
   useEffect(() => {
     if (!activeConversationKey) {
       setMessages([]);
+      setHasOlderMessages(false);
+      setOldestLoadedCreatedAt(null);
       return;
     }
 
-    void loadMessagesByConversation(activeConversationKey).then((rows) => {
+    void loadMessagesByConversationPaged(activeConversationKey, { limit: historyPageLimit }).then(async (rows) => {
       const now = Date.now();
       const valid = rows.filter((m) => !(m.expiresAt && m.expiresAt <= now));
       const expired = rows.filter((m) => m.expiresAt && m.expiresAt <= now);
       expired.forEach((m) => {
         void deleteMessageById(m.id);
       });
-      setMessages(valid.sort((a, b) => a.createdAt - b.createdAt));
+      const ordered = valid.sort((a, b) => a.createdAt - b.createdAt);
+      setMessages(ordered);
+      const oldest = ordered.length ? ordered[0].createdAt : null;
+      setOldestLoadedCreatedAt(oldest);
+      const total = await countMessagesByConversation(activeConversationKey);
+      setHasOlderMessages(total > ordered.length);
     });
-  }, [activeConversationKey]);
+  }, [activeConversationKey, historyPageLimit]);
 
   useEffect(() => {
     activeConversationRef.current = activeConversationKey;
@@ -896,9 +952,6 @@ export default function App() {
           if (data.code === 'invalid-group-name') {
             window.alert('Please enter a valid group name.');
           }
-          if (data.code === 'invalid-group-avatar') {
-            window.alert('Group photo is too large. Please choose a smaller image.');
-          }
           if (data.code === 'invalid-voice-payload') {
             window.alert('Voice note failed to send. Please record again.');
           }
@@ -914,14 +967,16 @@ export default function App() {
 
         if (data.action === 'hello-ack') {
           authReadyRef.current = true;
+          authModeRef.current = 'login';
+          setAuthMode('login');
           setAuthScreenOpen(false);
           setUsers(data.users || []);
           setGroups(data.groups || []);
           const nextProfile = {
-            userId: data.profile?.userId || data.userId || profileRef.current.userId,
-            username: data.profile?.username || profileRef.current.username,
-            avatar: data.profile?.avatar || '',
-            about: data.profile?.about || 'Hey there! I am using LAN Messenger.'
+            userId: data.profile?.userId ?? data.userId ?? profileRef.current.userId,
+            username: data.profile?.username ?? profileRef.current.username,
+            avatar: data.profile?.avatar ?? profileRef.current.avatar ?? '',
+            about: data.profile?.about ?? profileRef.current.about ?? 'Hey there! I am using LAN Messenger.'
           };
           setProfile(nextProfile);
           setOnboardingName(nextProfile.username);
@@ -1073,6 +1128,7 @@ export default function App() {
         }
 
         if (data.action === 'history-response') {
+          let processedConversationId = null;
           for (const row of data.messages || []) {
             let decryptedText = '[Encrypted message]';
             let photoUrl = null;
@@ -1100,6 +1156,7 @@ export default function App() {
             }
 
             const conversationId = row.group_id ? `group:${row.group_id}` : `dm:${dmConversationId(row.from_user, row.to_user)}`;
+            processedConversationId = conversationId;
             const mine = row.from_user === profileRef.current.userId;
             const existing = await loadMessageById(row.id);
             const baselineStatus = mine
@@ -1133,9 +1190,14 @@ export default function App() {
             await saveMessage(messageData);
           }
 
-          if (activeConversationRef.current) {
-            const rows = await loadMessagesByConversation(activeConversationRef.current);
-            setMessages(rows.sort((a, b) => a.createdAt - b.createdAt));
+          if (activeConversationRef.current && processedConversationId === activeConversationRef.current) {
+            const rows = await loadMessagesByConversationPaged(activeConversationRef.current, { limit: historyPageLimit });
+            const ordered = rows.sort((a, b) => a.createdAt - b.createdAt);
+            setMessages(ordered);
+            const oldest = ordered.length ? ordered[0].createdAt : null;
+            setOldestLoadedCreatedAt(oldest);
+            const total = await countMessagesByConversation(activeConversationRef.current);
+            setHasOlderMessages(Boolean(data.hasMore) || total > ordered.length);
           }
           return;
         }
@@ -1321,6 +1383,91 @@ export default function App() {
         if (data.action === 'call-fallback') {
           setCallState((prev) => ({ ...prev, status: 'fallback', peerId: data.from, mode: 'ws-audio' }));
         }
+
+        // Message action handlers
+        if (data.action === 'message-edited') {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === data.messageId
+                ? { ...m, text: data.editedText, editedAt: data.editedAt }
+                : m
+            )
+          );
+          return;
+        }
+
+        if (data.action === 'message-deleted') {
+          setMessages((prev) => prev.filter((m) => m.id !== data.messageId));
+          await deleteMessageById(data.messageId);
+          return;
+        }
+
+        if (data.action === 'message-pinned') {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === data.messageId
+                ? { ...m, pinned: true, pinnedAt: data.pinnedAt }
+                : m
+            )
+          );
+          return;
+        }
+
+        if (data.action === 'message-unpinned') {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === data.messageId
+                ? { ...m, pinned: false, pinnedAt: null }
+                : m
+            )
+          );
+          return;
+        }
+
+        if (data.action === 'pinned-messages-list') {
+          setPinnedMessages(data.messages || []);
+          return;
+        }
+
+        if (data.action === 'recording-started') {
+          setRecordingCall({
+            id: data.recordingId,
+            initiatorId: data.initiatorId,
+            startedAt: data.createdAt
+          });
+          return;
+        }
+
+        if (data.action === 'recording-stopped') {
+          setRecordingCall(null);
+          if (data.recordingUrl) {
+            setCallRecordings((prev) => [
+              {
+                id: data.recordingId,
+                duration: data.durationMs,
+                url: data.recordingUrl,
+                createdAt: Date.now()
+              },
+              ...prev
+            ]);
+          }
+          return;
+        }
+
+        if (data.action === 'call-recordings-list') {
+          setCallRecordings(data.recordings || []);
+          return;
+        }
+
+        if (data.action === 'temp-chat-expired') {
+          const conversationId = data.conversationKey;
+          await deleteMessagesByConversation(conversationId);
+          if (activeConversationRef.current === conversationId) {
+            setMessages([]);
+          }
+          window.alert('Temporary chat expired. All messages have been deleted.');
+          return;
+        }
       }
     });
 
@@ -1365,9 +1512,56 @@ export default function App() {
   const requestHistory = (target) => {
     if (!target) return;
     if (target.type === 'direct') {
-      wsRef.current?.send('history-request', { peerId: target.id });
+      wsRef.current?.send('history-request', { peerId: target.id, limit: historyPageLimit });
     } else {
-      wsRef.current?.send('history-request', { groupId: target.id });
+      wsRef.current?.send('history-request', { groupId: target.id, limit: historyPageLimit });
+    }
+  };
+
+  const loadOlderMessages = async () => {
+    if (!activeConversationKey || !oldestLoadedCreatedAt || isLoadingOlderMessages) return;
+    setIsLoadingOlderMessages(true);
+    const currentLoadedCount = messages.length;
+
+    try {
+      const older = await loadMessagesByConversationPaged(activeConversationKey, {
+        before: oldestLoadedCreatedAt,
+        limit: historyPageLimit
+      });
+
+      if (!older.length) {
+        // Ask server for older history page if local cache is exhausted.
+        if (active?.type === 'direct') {
+          wsRef.current?.send('history-request', {
+            peerId: active.id,
+            before: oldestLoadedCreatedAt,
+            limit: historyPageLimit
+          });
+        } else if (active?.type === 'group') {
+          wsRef.current?.send('history-request', {
+            groupId: active.id,
+            before: oldestLoadedCreatedAt,
+            limit: historyPageLimit
+          });
+        }
+        setHasOlderMessages(false);
+        return;
+      }
+
+      setMessages((prev) => {
+        const merged = [...older, ...prev];
+        const dedup = new Map();
+        for (const msg of merged) dedup.set(msg.id, msg);
+        return Array.from(dedup.values()).sort((a, b) => a.createdAt - b.createdAt);
+      });
+
+      const oldest = older[0]?.createdAt ?? null;
+      setOldestLoadedCreatedAt(oldest);
+
+      const total = await countMessagesByConversation(activeConversationKey);
+      setHasOlderMessages(total > (currentLoadedCount + older.length));
+    } finally {
+      setIsLoadingOlderMessages(false);
     }
   };
 
@@ -1869,10 +2063,6 @@ export default function App() {
     profilePhotoInputRef.current?.click();
   };
 
-  const triggerGroupPhotoPicker = () => {
-    groupPhotoInputRef.current?.click();
-  };
-
   const onProfilePhotoSelected = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -1902,34 +2092,6 @@ export default function App() {
     const nextProfile = { ...profileRef.current, avatar: '' };
     setProfile(nextProfile);
     sendHello(nextProfile, { profileUpdate: true });
-  };
-
-  const onGroupPhotoSelected = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file || !activeGroupInfo?.group?.id) return;
-
-    if (!file.type.startsWith('image/')) {
-      window.alert('Please choose an image file.');
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      window.alert('Group photo must be 2MB or less.');
-      return;
-    }
-
-    try {
-      const avatarDataUrl = await compressAvatarToDataUrl(file);
-      wsRef.current?.send('group-avatar-update', { groupId: activeGroupInfo.group.id, avatar: avatarDataUrl });
-    } catch {
-      window.alert('Failed to process image. Please try another image.');
-    }
-  };
-
-  const clearGroupPhoto = () => {
-    if (!activeGroupInfo?.group?.id) return;
-    wsRef.current?.send('group-avatar-update', { groupId: activeGroupInfo.group.id, avatar: '' });
   };
 
   const triggerPhotoUpload = () => {
@@ -2043,6 +2205,153 @@ export default function App() {
     sendHello(profileRef.current, { profileUpdate: true });
   };
 
+  // Message action handlers
+  const forwardMessage = (messageId) => {
+    setMessageForwardingId(messageId);
+  };
+
+  const completeForward = () => {
+    if (!messageForwardingId || !forwardDestId) {
+      window.alert('Please select a destination chat.');
+      return;
+    }
+
+    wsRef.current?.send('message-forward', {
+      messageId: messageForwardingId,
+      toGroupId: forwardDestType === 'group' ? forwardDestId : null,
+      toPeerId: forwardDestType === 'direct' ? forwardDestId : null
+    });
+
+    setMessageForwardingId(null);
+    setForwardDestType('group');
+    setForwardDestId('');
+    window.alert('Message forwarded successfully!');
+  };
+
+  const cancelForward = () => {
+    setMessageForwardingId(null);
+    setForwardDestType('group');
+    setForwardDestId('');
+  };
+
+  const startEditMessage = (message) => {
+    setMessageEditingId(message.id);
+    setMessageEditText(message.text || '');
+  };
+
+  const completeEditMessage = () => {
+    if (!messageEditingId || !messageEditText.trim()) return;
+
+    wsRef.current?.send('message-edit', {
+      messageId: messageEditingId,
+      editedText: messageEditText.trim()
+    });
+
+    setMessageEditingId(null);
+    setMessageEditText('');
+  };
+
+  const cancelEditMessage = () => {
+    setMessageEditingId(null);
+    setMessageEditText('');
+  };
+
+  const deleteMessageForMe = (messageId) => {
+    if (!window.confirm('Delete for me?')) return;
+
+    wsRef.current?.send('message-delete-for-me', { messageId });
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
+  };
+
+  const deleteMessageForAll = (messageId) => {
+    if (!window.confirm('Delete for everyone? (Only works if you sent this message)')) return;
+
+    wsRef.current?.send('message-delete-for-all', { messageId });
+  };
+
+  const pinMessage = (messageId) => {
+    wsRef.current?.send('message-pin', { messageId });
+  };
+
+  const unpinMessage = (messageId) => {
+    wsRef.current?.send('message-unpin', { messageId });
+  };
+
+  const getPinnedMessages = () => {
+    if (!active) return;
+
+    if (active.type === 'group') {
+      wsRef.current?.send('get-pinned-messages', { groupId: active.id });
+    } else {
+      wsRef.current?.send('get-pinned-messages', { peerId: active.id });
+    }
+
+    setShowPinnedMessages(true);
+  };
+
+  const jumpToMessage = (messageId) => {
+    const msg = messages.find((m) => m.id === messageId);
+    if (!msg) {
+      window.alert('Message not found or deleted.');
+      return;
+    }
+
+    setShowPinnedMessages(false);
+    setTimeout(() => {
+      const msgElement = document.getElementById(`msg-${messageId}`);
+      if (msgElement) {
+        msgElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        msgElement.style.backgroundColor = 'rgba(255, 193, 7, 0.3)';
+        setTimeout(() => {
+          msgElement.style.backgroundColor = '';
+        }, 2000);
+      }
+    }, 100);
+  };
+
+  const startCallRecording = () => {
+    if (!active) return;
+
+    wsRef.current?.send('call-recording-start', {
+      groupId: active.type === 'group' ? active.id : null,
+      peerId: active.type === 'direct' ? active.id : null
+    });
+  };
+
+  const stopCallRecording = (recordingId) => {
+    wsRef.current?.send('call-recording-stop', {
+      recordingId,
+      durationMs: recordingCall ? Date.now() - recordingCall.startedAt : 0
+    });
+  };
+
+  const getCallRecordings = () => {
+    if (!active) return;
+
+    if (active.type === 'group') {
+      wsRef.current?.send('get-call-recordings', { groupId: active.id });
+    } else {
+      wsRef.current?.send('get-call-recordings', { peerId: active.id });
+    }
+
+    setShowRecordingPanel(true);
+  };
+
+  const handleWalkiePressStart = () => {
+    if (!walkieTalkieMode || isRecordingVoice || !active) return;
+    setWalkiePressed(true);
+    void startVoiceRecording();
+  };
+
+  const handleWalkiePressEnd = () => {
+    if (!walkieTalkieMode || !walkiePressed) return;
+    setWalkiePressed(false);
+    if (isRecordingVoice) {
+      stopVoiceRecording();
+      setWalkieAutoSendPending(true);
+    }
+  };
+
   const saveOnboarding = async () => {
     const cleanedName = onboardingName.trim().slice(0, 30);
     const cleanedAbout = onboardingAbout.trim().slice(0, 120) || 'Hey there! I am using LAN Messenger.';
@@ -2128,6 +2437,11 @@ export default function App() {
   const loginPinMasked = loginPin.replace(/\d/g, '•');
   const signupPinMasked = onboardingPin.replace(/\d/g, '•');
   const signupPinConfirmMasked = onboardingPinConfirm.replace(/\d/g, '•');
+  const forwardCandidates = forwardDestType === 'group'
+    ? groups.filter((g) => !active || g.id !== active.id || active.type !== 'group')
+    : visibleUsers.filter((u) => !active || u.id !== active.id || active.type !== 'direct');
+  const selectedForwardMessage = messageForwardingId ? messages.find((m) => m.id === messageForwardingId) : null;
+  const messageById = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
 
   const handleLoginPinDigit = (digit) => {
     setLoginPin((prev) => appendPin(prev, digit));
@@ -2284,7 +2598,7 @@ export default function App() {
                 const isActive = active?.id === chat.id && active?.type === chat.type;
                 const conversationId = convKey(chat, profile.userId);
                 const unread = unreadCounts[conversationId] || 0;
-                const chatAvatar = chat.type === 'direct' ? userById.get(chat.id)?.avatar : groupById.get(chat.id)?.avatar || '';
+                const chatAvatar = chat.type === 'direct' ? userById.get(chat.id)?.avatar : '';
                 const menuKey = `${chat.type}:${chat.id}`;
                 const isMutedConversation = Boolean(mutedConversations[conversationId]);
                 const isArchivedConversation = Boolean(archivedConversations[conversationId]);
@@ -2300,7 +2614,7 @@ export default function App() {
                         <div className="chats-item-content">
                           <p className="chats-item-last">{chat.type === 'group' ? 'Group chat' : chat.online ? 'Online now' : 'Offline'}</p>
                           <ul className="chats-item-info">
-                            {(isMutedConversation || !chat.online) && <li className="chats-item-info-item"><span className="icon-silent">🔇</span></li>}
+                            {(isMutedConversation || !chat.online) && <li className="chats-item-info-item"><span className="icon icon-silent" aria-label="muted" /></li>}
                             {unread > 0 && <li className="chats-item-info-item"><span className="unread-messsages">{unread > 99 ? '99+' : unread}</span></li>}
                           </ul>
                         </div>
@@ -2350,7 +2664,7 @@ export default function App() {
               >
                 <Avatar
                   name={activeName}
-                  avatar={active?.type === 'direct' ? userById.get(active.id)?.avatar : groupById.get(active.id)?.avatar || ''}
+                  avatar={active?.type === 'direct' ? userById.get(active.id)?.avatar : ''}
                 />
                 <div className="common-header-content">
                   <h2 className="common-header-title">{activeName}</h2>
@@ -2370,6 +2684,10 @@ export default function App() {
                       <button className="chat-overflow-item" disabled={!active} onClick={() => setTemporaryChat(15 * 60 * 1000)}>Temporary chat: 15m</button>
                       <button className="chat-overflow-item" disabled={!active} onClick={() => setTemporaryChat(60 * 60 * 1000)}>Temporary chat: 1h</button>
                       <button className="chat-overflow-item" disabled={!active} onClick={() => setTemporaryChat(2 * 60 * 60 * 1000)}>Temporary chat: 2h</button>
+                      <button className="chat-overflow-item" disabled={!active} onClick={getPinnedMessages}>Pinned messages</button>
+                      <button className="chat-overflow-item" disabled={!active} onClick={recordingCall ? () => stopCallRecording(recordingCall.id) : startCallRecording}>{recordingCall ? 'Stop call recording' : 'Start call recording'}</button>
+                      <button className="chat-overflow-item" disabled={!active} onClick={getCallRecordings}>Call recordings</button>
+                      <button className="chat-overflow-item" disabled={!active} onClick={() => setWalkieTalkieMode((v) => !v)}>{walkieTalkieMode ? 'Walkie-talkie: Off' : 'Walkie-talkie: On'}</button>
                       {canJoinOngoingGroupCall && <button className="chat-overflow-item" onClick={joinOngoingGroupCall}>Join ongoing call</button>}
                       {active?.type === 'group' && <button className="chat-overflow-item" onClick={addMembersToActiveGroup}>Manage group</button>}
                       <button className="chat-overflow-item" disabled={!active} onClick={clearTemporaryChat}>Temporary chat: Off</button>
@@ -2392,32 +2710,93 @@ export default function App() {
             </div>
           )}
 
-          {active?.type === 'group' && activeGroupCall?.ongoing && (
-            <div className="ongoing-call-banner" role="status" aria-live="polite">
-              <div className="ongoing-call-banner-main">
-                <strong>Ongoing call</strong>
-                <span>{activeGroupCall.participantCount || 0} participant(s)</span>
-              </div>
-              {canJoinOngoingGroupCall ? (
-                <button type="button" className="ongoing-call-join" onClick={joinOngoingGroupCall}>Join</button>
-              ) : (
-                <span className="ongoing-call-state">{isInActiveGroupCall ? 'Joined' : 'In progress'}</span>
-              )}
-            </div>
-          )}
-
           <div className="messanger">
             <ol className="messanger-list">
+              {hasOlderMessages && (
+                <li className="common-message is-time">
+                  <button
+                    type="button"
+                    className="chat-overflow-item"
+                    onClick={() => void loadOlderMessages()}
+                    disabled={isLoadingOlderMessages}
+                  >
+                    {isLoadingOlderMessages ? 'Loading older messages...' : 'Load older messages'}
+                  </button>
+                </li>
+              )}
               <li className="common-message is-time"><p className="common-message-content">Today</p></li>
+
+              {activeTempSetting && (
+                <li className="temp-chat-info">
+                  <div>
+                    <div className="temp-chat-countdown">Temporary chat active: {fmtDuration(tempChatCountdown)}</div>
+                    <div className="temp-chat-label">When timer reaches zero, chat history is deleted for this conversation.</div>
+                  </div>
+                </li>
+              )}
+
+              {recordingCall && (
+                <li className="recording-indicator">
+                  <span className="recording-dot" />
+                  <span>Call recording in progress</span>
+                  <span className="recording-timer">{fmtDuration(Date.now() - recordingCall.startedAt)}</span>
+                </li>
+              )}
+              
+              {canJoinOngoingGroupCall && (
+                <li className="ongoing-call-banner">
+                  <div className="ongoing-call-banner-content">
+                    <span className="icon icon-phone-active" />
+                    <div className="ongoing-call-info">
+                      <p className="ongoing-call-title">Ongoing call</p>
+                      <p className="ongoing-call-participants">
+                        {activeGroupCall?.participants?.length || 0} participant{activeGroupCall?.participants?.length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <button type="button" className="ongoing-call-join-btn" onClick={joinOngoingGroupCall}>
+                      <span className="icon icon-phone" />
+                      Join
+                    </button>
+                  </div>
+                </li>
+              )}
+
               {visibleMessages.map((m) => (
-                <li className={`common-message ${m.mine ? 'is-you' : 'is-other'}`} key={m.id}>
-                  {m.type === 'text' ? (
-                    <p className="common-message-content">{m.text}</p>
+                <li className={`common-message ${m.mine ? 'is-you' : 'is-other'}`} key={m.id} id={`msg-${m.id}`}>
+                  {m.type === 'text' && messageEditingId === m.id ? (
+                    <div className="message-edit-mode">
+                      <input
+                        className="edit-mode-input"
+                        value={messageEditText}
+                        onChange={(e) => setMessageEditText(e.target.value)}
+                        maxLength={3000}
+                      />
+                      <div className="edit-mode-controls">
+                        <button type="button" className="edit-mode-save" onClick={completeEditMessage}>Save</button>
+                        <button type="button" className="edit-mode-cancel" onClick={cancelEditMessage}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : m.type === 'text' ? (
+                    <p className="common-message-content">{m.text} {m.editedAt ? <small>(edited)</small> : null}</p>
                   ) : m.type === 'photo' ? (
                     <div className="common-message-content"><img src={m.photoUrl} alt="Sent photo" className="message-photo" /></div>
                   ) : (
                     <div className="common-message-content"><audio controls src={m.voiceUrl} /></div>
                   )}
+
+                  <div className="message-actions-menu">
+                    <button type="button" className="message-action-btn" onClick={() => forwardMessage(m.id)} title="Forward"><span className="icon icon-forward-msg" aria-hidden="true" /></button>
+                    {m.type === 'text' && m.mine && <button type="button" className="message-action-btn" onClick={() => startEditMessage(m)} title="Edit"><span className="icon icon-edit-msg" aria-hidden="true" /></button>}
+                    {m.pinned ? (
+                      <button type="button" className="message-action-btn" onClick={() => unpinMessage(m.id)} title="Unpin"><span className="icon icon-pin-fill-msg" aria-hidden="true" /></button>
+                    ) : (
+                      <button type="button" className="message-action-btn" onClick={() => pinMessage(m.id)} title="Pin"><span className="icon icon-pin-msg" aria-hidden="true" /></button>
+                    )}
+                    <button type="button" className="message-action-btn danger" onClick={() => deleteMessageForMe(m.id)} title="Delete for me"><span className="icon icon-delete-msg" aria-hidden="true" /></button>
+                    {m.mine && <button type="button" className="message-action-btn danger" onClick={() => deleteMessageForAll(m.id)} title="Delete for everyone"><span className="icon icon-delete-all-msg" aria-hidden="true" /></button>}
+                  </div>
+
+                  {m.pinned && <span className="message-pin-badge"><span className="icon icon-pin-fill-msg" aria-hidden="true" /></span>}
                   {m.mine && (
                     <span className={`status status-${m.status || 'sent'}`}>
                       <span className="tick" />
@@ -2431,6 +2810,24 @@ export default function App() {
           </div>
 
           <form className="message-box" onSubmit={handleComposerSubmit}>
+            {walkieTalkieMode && (
+              <div className="walkie-talkie-mode">
+                <p className="walkie-talkie-title">Walkie-Talkie Mode</p>
+                <button
+                  type="button"
+                  className="walkie-talkie-button"
+                  onMouseDown={handleWalkiePressStart}
+                  onMouseUp={handleWalkiePressEnd}
+                  onMouseLeave={handleWalkiePressEnd}
+                  onTouchStart={handleWalkiePressStart}
+                  onTouchEnd={handleWalkiePressEnd}
+                  disabled={!active}
+                >
+                  <span className={`icon ${walkiePressed ? 'icon-walkie-live' : 'icon-walkie-idle'}`} aria-hidden="true" />
+                </button>
+                <p className="walkie-talkie-status">{walkiePressed ? 'Talking... release to send' : 'Hold to talk'}</p>
+              </div>
+            )}
             <div className="attachment-anchor" ref={attachmentMenuRef}>
               <button type="button" className="common-button" disabled={!active} onClick={() => setAttachmentMenuOpen((v) => !v)}><span className="icon icon-attach" aria-label="attach" /></button>
               {attachmentMenuOpen && (
@@ -2524,6 +2921,85 @@ export default function App() {
               </button>
             )}
           </form>
+
+          {messageForwardingId && (
+            <div className="forward-modal" onClick={cancelForward}>
+              <div className="forward-modal-content" onClick={(e) => e.stopPropagation()}>
+                <h4 className="forward-modal-title">Forward message</h4>
+                {selectedForwardMessage && (
+                  <div className="pinned-message-item">
+                    <p className="pinned-message-preview">Preview: {selectedForwardMessage.text || '[media message]'}</p>
+                  </div>
+                )}
+                <div className="forward-dest-tabs">
+                  <button type="button" className={`forward-dest-tab ${forwardDestType === 'group' ? 'active' : ''}`} onClick={() => { setForwardDestType('group'); setForwardDestId(''); }}>Groups</button>
+                  <button type="button" className={`forward-dest-tab ${forwardDestType === 'direct' ? 'active' : ''}`} onClick={() => { setForwardDestType('direct'); setForwardDestId(''); }}>Private</button>
+                </div>
+                <div className="forward-dest-list">
+                  {forwardCandidates.map((item) => (
+                    <button
+                      type="button"
+                      key={item.id}
+                      className={`forward-dest-item ${forwardDestId === item.id ? 'selected' : ''}`}
+                      onClick={() => setForwardDestId(item.id)}
+                    >
+                      {forwardDestType === 'group' ? item.name : item.username}
+                    </button>
+                  ))}
+                </div>
+                <div className="forward-modal-actions">
+                  <button type="button" className="forward-modal-btn secondary" onClick={cancelForward}>Cancel</button>
+                  <button type="button" className="forward-modal-btn primary" onClick={completeForward} disabled={!forwardDestId}>Forward</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showPinnedMessages && (
+            <aside className="pinned-sidebar">
+              <div className="pinned-sidebar-header">
+                <span className="pinned-sidebar-title">Pinned messages</span>
+                <button type="button" className="pinned-sidebar-close" onClick={() => setShowPinnedMessages(false)}><span className="icon icon-close" aria-label="close" /></button>
+              </div>
+              <div className="pinned-messages-list">
+                {!pinnedMessages.length && <p className="pinned-message-preview">No pinned messages yet.</p>}
+                {pinnedMessages.map((pm) => (
+                  <button type="button" key={pm.id} className="pinned-message-item" onClick={() => jumpToMessage(pm.id)}>
+                    <p className="pinned-message-preview">{messageById.get(pm.id)?.text || (messageById.get(pm.id)?.photoUrl ? '[Photo]' : (messageById.get(pm.id)?.voiceUrl ? '[Voice message]' : 'Pinned message'))}</p>
+                    <p className="pinned-message-time">{fmtTime(messageById.get(pm.id)?.createdAt || pm.pinned_at || pm.created_at)}</p>
+                  </button>
+                ))}
+              </div>
+            </aside>
+          )}
+
+          {showRecordingPanel && (
+            <aside className="recordings-panel">
+              <div className="recordings-panel-header">
+                <span>Call recordings</span>
+                <button type="button" className="pinned-sidebar-close" onClick={() => setShowRecordingPanel(false)}><span className="icon icon-close" aria-label="close" /></button>
+              </div>
+              <div className="recordings-list">
+                {!callRecordings.length && <p className="pinned-message-preview">No call recordings yet.</p>}
+                {callRecordings.map((rec) => (
+                  <div className="recording-item" key={rec.id}>
+                    <div className="recording-item-header">
+                      <span className="recording-duration">{fmtDuration(rec.duration_ms || rec.duration || 0)}</span>
+                      <span className="recording-duration">{fmtTime(rec.created_at || rec.createdAt)}</span>
+                    </div>
+                    {rec.recording_url || rec.url ? (
+                      <>
+                        <audio controls src={rec.recording_url || rec.url} />
+                        <a className="recording-play-btn" href={rec.recording_url || rec.url} download={`recording-${rec.id}.webm`}>Export</a>
+                      </>
+                    ) : (
+                      <p className="pinned-message-preview">Recording file will appear after upload is available.</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </aside>
+          )}
         </main>
 
         <aside className={`main-info ${showInfoPanel ? '' : 'u-hide'}`}>
@@ -2538,7 +3014,7 @@ export default function App() {
               <section className="wa-profile-hero">
                 <Avatar
                   name={activeGroupInfo?.group?.name || activeName}
-                  avatar={activeGroupInfo?.group?.avatar || groupById.get(active?.id)?.avatar || ''}
+                  avatar=""
                   className="main-info-image"
                 />
                 <h4 className="wa-profile-name">{activeGroupInfo?.group?.name || activeName}</h4>
@@ -2629,13 +3105,6 @@ export default function App() {
                       </article>
                     </section>
                   )}
-
-                  <section className="wa-profile-group">
-                    <div className="profile-photo-actions">
-                      <button className="common-button profile-photo-button" onClick={triggerGroupPhotoPicker}>Change group photo</button>
-                      {Boolean(activeGroupInfo.group.avatar) && <button className="common-button profile-photo-remove" onClick={clearGroupPhoto}>Remove photo</button>}
-                    </div>
-                  </section>
                 </>
               )}
             </div>
@@ -2894,14 +3363,6 @@ export default function App() {
         accept="image/*"
         className="hidden-file-input"
         onChange={onProfilePhotoSelected}
-      />
-
-      <input
-        ref={groupPhotoInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden-file-input"
-        onChange={onGroupPhotoSelected}
       />
 
       <input
