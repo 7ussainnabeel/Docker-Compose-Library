@@ -837,6 +837,49 @@ body::before {
   border-bottom: 1px solid var(--border);
 }
 
+.ongoing-call-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(90deg, rgba(0, 168, 132, 0.1), rgba(0, 168, 132, 0.04));
+}
+
+.ongoing-call-banner-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ongoing-call-banner-main strong {
+  font-size: 13px;
+  color: #0b5f4f;
+}
+
+.ongoing-call-banner-main span {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted-copy);
+}
+
+.ongoing-call-join {
+  border-radius: 999px;
+  border: 1px solid #0a7b63;
+  background: #00a884;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+}
+
+.ongoing-call-state {
+  font-size: 12px;
+  color: #0b5f4f;
+  font-weight: 600;
+}
+
 .temp-chat-controls {
   display: flex;
   align-items: center;

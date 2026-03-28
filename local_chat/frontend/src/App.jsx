@@ -298,6 +298,16 @@ export default function App() {
 
   const activeGroupMembers = activeGroupInfo?.members || [];
   const activeGroupCall = active?.type === 'group' ? groupCallStatus[active.id] : null;
+  const isInActiveGroupCall = Boolean(
+    active?.type === 'group'
+    && activeGroupCall?.participants?.includes(profile.userId)
+  );
+  const canJoinOngoingGroupCall = Boolean(
+    active?.type === 'group'
+    && activeGroupCall?.ongoing
+    && !isInActiveGroupCall
+    && (!callState.groupId || callState.groupId !== active.id)
+  );
   const myActiveGroupMember = activeGroupMembers.find((member) => member.id === profile.userId) || null;
   const isActiveGroupCreator = activeGroupInfo?.group?.created_by === profile.userId;
   const isActiveGroupAdmin = Boolean(isActiveGroupCreator || myActiveGroupMember?.role === 'admin');
@@ -970,7 +980,7 @@ export default function App() {
         }
 
         if (data.action === 'group-call-join-request') {
-          if (!localCallStreamRef.current || callState.groupId !== data.groupId) return;
+          if (!localCallStreamRef.current || callStateRef.current.groupId !== data.groupId) return;
           const pc = createPeerConnection(data.from, data.groupId);
           localCallStreamRef.current.getTracks().forEach((t) => pc.addTrack(t, localCallStreamRef.current));
           const offer = await pc.createOffer();
@@ -2323,6 +2333,7 @@ export default function App() {
                       <button className="chat-overflow-item" disabled={!active} onClick={() => setTemporaryChat(15 * 60 * 1000)}>Temporary chat: 15m</button>
                       <button className="chat-overflow-item" disabled={!active} onClick={() => setTemporaryChat(60 * 60 * 1000)}>Temporary chat: 1h</button>
                       <button className="chat-overflow-item" disabled={!active} onClick={() => setTemporaryChat(2 * 60 * 60 * 1000)}>Temporary chat: 2h</button>
+                      {canJoinOngoingGroupCall && <button className="chat-overflow-item" onClick={joinOngoingGroupCall}>Join ongoing call</button>}
                       {active?.type === 'group' && <button className="chat-overflow-item" onClick={addMembersToActiveGroup}>Manage group</button>}
                       <button className="chat-overflow-item" disabled={!active} onClick={clearTemporaryChat}>Temporary chat: Off</button>
                       <button className="chat-overflow-item danger" disabled={!active} onClick={() => void deleteActiveChat()}>Delete chat history</button>
@@ -2341,6 +2352,20 @@ export default function App() {
                 onChange={(e) => setChatSearchQuery(e.target.value)}
                 placeholder="Search in conversation"
               />
+            </div>
+          )}
+
+          {active?.type === 'group' && activeGroupCall?.ongoing && (
+            <div className="ongoing-call-banner" role="status" aria-live="polite">
+              <div className="ongoing-call-banner-main">
+                <strong>Ongoing call</strong>
+                <span>{activeGroupCall.participantCount || 0} participant(s)</span>
+              </div>
+              {canJoinOngoingGroupCall ? (
+                <button type="button" className="ongoing-call-join" onClick={joinOngoingGroupCall}>Join</button>
+              ) : (
+                <span className="ongoing-call-state">{isInActiveGroupCall ? 'Joined' : 'In progress'}</span>
+              )}
             </div>
           )}
 
