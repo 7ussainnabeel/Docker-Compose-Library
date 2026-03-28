@@ -31,6 +31,7 @@ function initDb(dbFile) {
     CREATE TABLE IF NOT EXISTS group_members (
       group_id TEXT NOT NULL,
       user_id TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'member',
       PRIMARY KEY (group_id, user_id)
     );
 
@@ -80,6 +81,7 @@ function initDb(dbFile) {
 
   ensureColumn('users', 'about', 'about TEXT');
   ensureColumn('users', 'pin', 'pin TEXT');
+  ensureColumn('group_members', 'role', "role TEXT NOT NULL DEFAULT 'member'");
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_pin ON users(pin) WHERE pin IS NOT NULL');
 
   const statements = {
@@ -98,15 +100,26 @@ function initDb(dbFile) {
     findUserByPin: db.prepare('SELECT id, username, avatar, about, pin, last_seen FROM users WHERE pin = ? LIMIT 1'),
     insertGroup: db.prepare('INSERT INTO groups (id, name, created_by, created_at) VALUES (?, ?, ?, ?)'),
     groupById: db.prepare('SELECT id, name, created_by, created_at FROM groups WHERE id = ? LIMIT 1'),
-    addMember: db.prepare('INSERT OR IGNORE INTO group_members (group_id, user_id) VALUES (?, ?)'),
+    addMember: db.prepare('INSERT OR IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)'),
+    setMemberRole: db.prepare('UPDATE group_members SET role = ? WHERE group_id = ? AND user_id = ?'),
+    removeMember: db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?'),
+    memberRecordForGroupUser: db.prepare('SELECT group_id, user_id, role FROM group_members WHERE group_id = ? AND user_id = ? LIMIT 1'),
     groupsForUser: db.prepare(`
-      SELECT g.id, g.name, g.created_by, g.created_at
+      SELECT g.id, g.name, g.created_by, g.created_at, gm.role AS my_role
       FROM groups g
       INNER JOIN group_members gm ON gm.group_id = g.id
       WHERE gm.user_id = ?
       ORDER BY g.created_at DESC
     `),
     membersForGroup: db.prepare('SELECT user_id FROM group_members WHERE group_id = ?'),
+    membersDetailedForGroup: db.prepare(`
+      SELECT gm.user_id AS id, gm.role, u.username, u.avatar, u.about
+      FROM group_members gm
+      INNER JOIN users u ON u.id = gm.user_id
+      WHERE gm.group_id = ?
+      ORDER BY CASE gm.role WHEN 'admin' THEN 0 ELSE 1 END, u.username COLLATE NOCASE ASC
+    `),
+    renameGroup: db.prepare('UPDATE groups SET name = ? WHERE id = ?'),
     insertMessage: db.prepare(`
       INSERT INTO messages (id, kind, from_user, to_user, group_id, payload, mime_type, created_at)
       VALUES (@id, @kind, @from_user, @to_user, @group_id, @payload, @mime_type, @created_at)

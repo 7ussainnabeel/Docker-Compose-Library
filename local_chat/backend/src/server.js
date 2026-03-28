@@ -37,9 +37,20 @@ const app = express();
 app.disable('x-powered-by');
 app.use(express.json({ limit: HTTP_BODY_LIMIT }));
 
-const { statements } = initDb(DB_FILE);
+const { db, statements } = initDb(DB_FILE);
 const onlineUsers = new Map();
 const rateBucket = new Map();
+
+db.exec("UPDATE group_members SET role = 'member' WHERE role IS NULL OR role NOT IN ('admin', 'member')");
+db.exec(`
+  UPDATE group_members
+  SET role = 'admin'
+  WHERE EXISTS (
+    SELECT 1 FROM groups g
+    WHERE g.id = group_members.group_id
+      AND g.created_by = group_members.user_id
+  )
+`);
 
 const discovery = startDiscovery({
   port: PORT,
@@ -160,10 +171,42 @@ function groupMembers(groupId) {
   return statements.membersForGroup.all(groupId).map((r) => r.user_id);
 }
 
+function groupMemberDetails(groupId) {
+  const online = new Set(onlineUsers.keys());
+  return statements.membersDetailedForGroup.all(groupId).map((member) => ({
+    ...member,
+    online: online.has(member.id)
+  }));
+}
+
 function isGroupMember(groupId, userId) {
   if (!groupId || !userId) return false;
   const members = groupMembers(groupId);
   return members.includes(userId);
+}
+
+function isGroupAdmin(groupId, userId) {
+  if (!groupId || !userId) return false;
+  const group = statements.groupById.get(groupId);
+  if (!group) return false;
+  if (group.created_by === userId) return true;
+  const membership = statements.memberRecordForGroupUser.get(groupId, userId);
+  return Boolean(membership && membership.role === 'admin');
+}
+
+function broadcastGroupMeta(groupId, actorId = null) {
+  const group = statements.groupById.get(groupId);
+  if (!group) return;
+  const members = groupMemberDetails(groupId);
+  const memberIds = members.map((m) => m.id);
+  const payload = {
+    action: 'group-meta-updated',
+    group,
+    members,
+    updatedBy: actorId,
+    updatedAt: Date.now()
+  };
+  memberIds.forEach((memberId) => enqueueOrSend(memberId, payload));
 }
 
 function directPair(userA, userB) {
@@ -309,7 +352,11 @@ wss.on('connection', (ws) => {
         'hello',
         'typing',
         'create-group',
+        'group-meta-request',
+        'group-rename',
         'add-group-members',
+        'remove-group-member',
+        'set-group-member-role',
         'history-request',
         'delete-chat',
         'set-temp-chat',
@@ -335,7 +382,7 @@ wss.on('connection', (ws) => {
 
       if (action === 'hello') {
         const requestedPin = typeof data.pin === 'string' ? data.pin.trim() : '';
-        if (requestedPin && !/^\d{4}$/.test(requestedPin)) {
+        if (requestedPin && !/^(\d{4}|\d{6})$/.test(requestedPin)) {
           safeSend(ws, { action: 'error', code: 'invalid-pin' });
           return;
         }
@@ -347,10 +394,19 @@ wss.on('connection', (ws) => {
           ? data.about.trim().slice(0, 120)
           : 'Hey there! I am using LAN Messenger.';
         const profileUpdate = Boolean(data.profileUpdate);
+        if (profileUpdate && !ws.userId) {
+          safeSend(ws, { action: 'error', code: 'unauthorized-profile-update' });
+          return;
+        }
 
         const byPin = requestedPin ? statements.findUserByPin.get(requestedPin) : null;
         if (authMode === 'login' && !byPin) {
           safeSend(ws, { action: 'error', code: 'pin-not-found' });
+          return;
+        }
+
+        if (profileUpdate && byPin && byPin.id !== ws.userId) {
+          safeSend(ws, { action: 'error', code: 'pin-in-use' });
           return;
         }
 
@@ -359,7 +415,9 @@ wss.on('connection', (ws) => {
           return;
         }
 
-        const userId = authMode === 'login'
+        const userId = profileUpdate
+          ? ws.userId
+          : authMode === 'login'
           ? byPin.id
           : (byPin?.id || data.userId || uuidv4());
         const existingUser = statements.getUserById.get(userId);
@@ -441,11 +499,62 @@ wss.on('connection', (ws) => {
       const uniqueMembers = Array.from(new Set([ws.userId, ...members])).slice(0, MAX_GROUP_MEMBERS);
 
       statements.insertGroup.run(groupId, name, ws.userId, Date.now());
-      uniqueMembers.forEach((memberId) => statements.addMember.run(groupId, memberId));
+      uniqueMembers.forEach((memberId) => statements.addMember.run(groupId, memberId, memberId === ws.userId ? 'admin' : 'member'));
 
       const event = { action: 'group-created', group: { id: groupId, name, created_by: ws.userId, created_at: Date.now() } };
       uniqueMembers.forEach((memberId) => enqueueOrSend(memberId, event));
+      broadcastGroupMeta(groupId, ws.userId);
       audit('group-created', ws.userId, ws.remoteIp, { groupId, size: uniqueMembers.length });
+      return;
+    }
+
+    if (action === 'group-meta-request') {
+      if (!data.groupId) {
+        safeSend(ws, { action: 'error', code: 'group-not-found' });
+        return;
+      }
+
+      if (!isGroupMember(data.groupId, ws.userId)) {
+        safeSend(ws, { action: 'error', code: 'forbidden-group-access' });
+        audit('forbidden-group-access', ws.userId, ws.remoteIp, { action, groupId: data.groupId });
+        return;
+      }
+
+      const group = statements.groupById.get(data.groupId);
+      if (!group) {
+        safeSend(ws, { action: 'error', code: 'group-not-found' });
+        return;
+      }
+
+      safeSend(ws, {
+        action: 'group-meta-response',
+        group,
+        members: groupMemberDetails(data.groupId)
+      });
+      return;
+    }
+
+    if (action === 'group-rename') {
+      if (!data.groupId || typeof data.name !== 'string') {
+        safeSend(ws, { action: 'error', code: 'invalid-group-name' });
+        return;
+      }
+
+      if (!isGroupMember(data.groupId, ws.userId)) {
+        safeSend(ws, { action: 'error', code: 'forbidden-group-access' });
+        audit('forbidden-group-access', ws.userId, ws.remoteIp, { action, groupId: data.groupId });
+        return;
+      }
+
+      const name = data.name.trim().slice(0, 64);
+      if (!name) {
+        safeSend(ws, { action: 'error', code: 'invalid-group-name' });
+        return;
+      }
+
+      statements.renameGroup.run(name, data.groupId);
+      broadcastGroupMeta(data.groupId, ws.userId);
+      audit('group-renamed', ws.userId, ws.remoteIp, { groupId: data.groupId });
       return;
     }
 
@@ -455,9 +564,9 @@ wss.on('connection', (ws) => {
         return;
       }
 
-      if (!isGroupMember(data.groupId, ws.userId)) {
-        safeSend(ws, { action: 'error', code: 'forbidden-group-access' });
-        audit('forbidden-group-access', ws.userId, ws.remoteIp, { action, groupId: data.groupId });
+      if (!isGroupAdmin(data.groupId, ws.userId)) {
+        safeSend(ws, { action: 'error', code: 'forbidden-group-admin' });
+        audit('forbidden-group-admin', ws.userId, ws.remoteIp, { action, groupId: data.groupId });
         return;
       }
 
@@ -469,7 +578,7 @@ wss.on('connection', (ws) => {
       )).slice(0, MAX_GROUP_MEMBERS);
 
       const before = new Set(groupMembers(data.groupId));
-      candidates.forEach((memberId) => statements.addMember.run(data.groupId, memberId));
+      candidates.forEach((memberId) => statements.addMember.run(data.groupId, memberId, 'member'));
       const after = groupMembers(data.groupId);
       const addedMembers = after.filter((memberId) => !before.has(memberId));
       const group = statements.groupById.get(data.groupId);
@@ -480,16 +589,81 @@ wss.on('connection', (ws) => {
       }
 
       addedMembers.forEach((memberId) => enqueueOrSend(memberId, { action: 'group-created', group }));
-      after.forEach((memberId) => enqueueOrSend(memberId, {
-        action: 'group-members-updated',
-        groupId: data.groupId,
-        addedBy: ws.userId,
-        count: addedMembers.length,
-        createdAt: Date.now()
-      }));
+      broadcastGroupMeta(data.groupId, ws.userId);
 
       safeSend(ws, { action: 'group-members-added-ack', groupId: data.groupId, count: addedMembers.length });
       audit('group-members-added', ws.userId, ws.remoteIp, { groupId: data.groupId, count: addedMembers.length });
+      return;
+    }
+
+    if (action === 'remove-group-member') {
+      if (!data.groupId || !data.memberId) {
+        safeSend(ws, { action: 'error', code: 'invalid-group-members-payload' });
+        return;
+      }
+
+      if (!isGroupAdmin(data.groupId, ws.userId)) {
+        safeSend(ws, { action: 'error', code: 'forbidden-group-admin' });
+        audit('forbidden-group-admin', ws.userId, ws.remoteIp, { action, groupId: data.groupId });
+        return;
+      }
+
+      const group = statements.groupById.get(data.groupId);
+      if (!group) {
+        safeSend(ws, { action: 'error', code: 'group-not-found' });
+        return;
+      }
+
+      if (data.memberId === group.created_by) {
+        safeSend(ws, { action: 'error', code: 'cannot-remove-group-creator' });
+        return;
+      }
+
+      const member = statements.memberRecordForGroupUser.get(data.groupId, data.memberId);
+      if (!member) {
+        safeSend(ws, { action: 'error', code: 'group-member-not-found' });
+        return;
+      }
+
+      statements.removeMember.run(data.groupId, data.memberId);
+      enqueueOrSend(data.memberId, { action: 'group-removed', groupId: data.groupId, removedBy: ws.userId, createdAt: Date.now() });
+      broadcastGroupMeta(data.groupId, ws.userId);
+      audit('group-member-removed', ws.userId, ws.remoteIp, { groupId: data.groupId, memberId: data.memberId });
+      return;
+    }
+
+    if (action === 'set-group-member-role') {
+      if (!data.groupId || !data.memberId || !['admin', 'member'].includes(data.role)) {
+        safeSend(ws, { action: 'error', code: 'invalid-group-role' });
+        return;
+      }
+
+      const group = statements.groupById.get(data.groupId);
+      if (!group) {
+        safeSend(ws, { action: 'error', code: 'group-not-found' });
+        return;
+      }
+
+      if (group.created_by !== ws.userId) {
+        safeSend(ws, { action: 'error', code: 'forbidden-group-owner' });
+        audit('forbidden-group-owner', ws.userId, ws.remoteIp, { action, groupId: data.groupId });
+        return;
+      }
+
+      if (data.memberId === group.created_by) {
+        safeSend(ws, { action: 'error', code: 'cannot-change-group-creator-role' });
+        return;
+      }
+
+      const member = statements.memberRecordForGroupUser.get(data.groupId, data.memberId);
+      if (!member) {
+        safeSend(ws, { action: 'error', code: 'group-member-not-found' });
+        return;
+      }
+
+      statements.setMemberRole.run(data.role, data.groupId, data.memberId);
+      broadcastGroupMeta(data.groupId, ws.userId);
+      audit('group-member-role-updated', ws.userId, ws.remoteIp, { groupId: data.groupId, memberId: data.memberId, role: data.role });
       return;
     }
 

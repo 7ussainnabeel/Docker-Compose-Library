@@ -87,6 +87,21 @@ function Avatar({ name, avatar, className = 'profile-image' }) {
   return <span className={`${className} profile-fallback`}>{initials(name)}</span>;
 }
 
+function PinPad({ onDigit, onBackspace, onClear }) {
+  const digits = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
+  return (
+    <div className="auth-pinpad" role="group" aria-label="PIN number pad">
+      {digits.map((digit) => (
+        <button key={digit} type="button" className="auth-pinpad-key" onClick={() => onDigit(digit)}>{digit}</button>
+      ))}
+      <button type="button" className="auth-pinpad-key is-muted" onClick={onClear}>Clear</button>
+      <button type="button" className="auth-pinpad-key" onClick={() => onDigit('0')}>0</button>
+      <button type="button" className="auth-pinpad-key is-muted" onClick={onBackspace}>Del</button>
+    </div>
+  );
+}
+
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -192,7 +207,6 @@ export default function App() {
   const [isMessageOpen, setIsMessageOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 767 : false);
   const [callState, setCallState] = useState({ status: 'idle', peerId: null, mode: 'webrtc' });
-  const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingName, setOnboardingName] = useState('');
   const [onboardingAbout, setOnboardingAbout] = useState('Hey there! I am using LAN Messenger.');
   const [onboardingPin, setOnboardingPin] = useState('');
@@ -202,6 +216,11 @@ export default function App() {
   const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [showDirectory, setShowDirectory] = useState(false);
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
+  const [sideMenuOpen, setSideMenuOpen] = useState(false);
+  const [chatRowMenuOpen, setChatRowMenuOpen] = useState('');
+  const [showArchivedChats, setShowArchivedChats] = useState(false);
+  const [archivedConversations, setArchivedConversations] = useState({});
+  const [mutedConversations, setMutedConversations] = useState({});
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState({});
   const [recentConversations, setRecentConversations] = useState([]);
@@ -209,6 +228,9 @@ export default function App() {
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [aboutDraft, setAboutDraft] = useState(profile.about || 'Hey there! I am using LAN Messenger.');
+  const [nameDraft, setNameDraft] = useState(profile.username || '');
+  const [newPinDraft, setNewPinDraft] = useState('');
+  const [newPinConfirmDraft, setNewPinConfirmDraft] = useState('');
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [voiceWaveform, setVoiceWaveform] = useState([]);
@@ -216,7 +238,12 @@ export default function App() {
   const [profilePin, setProfilePin] = useState('');
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [groupNameDraft, setGroupNameDraft] = useState('');
-  const [groupMembersDraft, setGroupMembersDraft] = useState('');
+  const [groupSelectedMembers, setGroupSelectedMembers] = useState([]);
+  const [groupInfo, setGroupInfo] = useState({ group: null, members: [] });
+  const [groupNameEditDraft, setGroupNameEditDraft] = useState('');
+  const [groupMembersToAdd, setGroupMembersToAdd] = useState([]);
+  const [onboardingPinConfirm, setOnboardingPinConfirm] = useState('');
+  const [signupPinField, setSignupPinField] = useState('create');
 
   const wsRef = useRef(null);
   const profileRef = useRef(profile);
@@ -238,6 +265,7 @@ export default function App() {
   const pendingIceRef = useRef([]);
   const voiceRecordingRef = useRef({ startedAt: 0, clipId: null });
   const chatMenuRef = useRef(null);
+  const sideMenuRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const photoInputRef = useRef(null);
   const cameraInputRef = useRef(null);
@@ -252,6 +280,25 @@ export default function App() {
   const activeConversationKey = convKey(active, profile.userId);
   const visibleUsers = useMemo(() => users.filter((u) => u.id !== profile.userId), [users, profile.userId]);
   const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
+  const activeGroup = useMemo(
+    () => (active?.type === 'group' ? groups.find((g) => g.id === active.id) || null : null),
+    [active, groups]
+  );
+
+  const activeGroupInfo = useMemo(() => {
+    if (!activeGroup || groupInfo.group?.id !== activeGroup.id) return null;
+    return groupInfo;
+  }, [activeGroup, groupInfo]);
+
+  const activeGroupMembers = activeGroupInfo?.members || [];
+  const myActiveGroupMember = activeGroupMembers.find((member) => member.id === profile.userId) || null;
+  const isActiveGroupCreator = activeGroupInfo?.group?.created_by === profile.userId;
+  const isActiveGroupAdmin = Boolean(isActiveGroupCreator || myActiveGroupMember?.role === 'admin');
+  const addableActiveGroupUsers = useMemo(() => {
+    if (!activeGroupInfo) return [];
+    const memberIds = new Set(activeGroupMembers.map((member) => member.id));
+    return visibleUsers.filter((user) => !memberIds.has(user.id));
+  }, [activeGroupInfo, activeGroupMembers, visibleUsers]);
 
   const combinedChats = useMemo(() => {
     const direct = visibleUsers.map((u) => ({
@@ -270,18 +317,29 @@ export default function App() {
     const q = search.trim().toLowerCase();
     const all = [...direct, ...grouped];
     const filtered = q ? all.filter((c) => c.label.toLowerCase().includes(q)) : all;
+    const filteredByArchive = filtered.filter((c) => {
+      const conversationId = convKey(c, profile.userId);
+      const isArchived = Boolean(archivedConversations[conversationId]);
+      return showArchivedChats ? isArchived : !isArchived;
+    });
 
     if (showDirectory) {
       return filtered;
     }
 
     const recentSet = new Set(recentConversations);
-    const prioritized = filtered.filter((c) => recentSet.has(convKey(c, profile.userId)));
+    const recentFirst = filteredByArchive.filter((c) => recentSet.has(convKey(c, profile.userId)));
+    const remaining = filteredByArchive.filter((c) => !recentSet.has(convKey(c, profile.userId)));
+    const prioritized = [...recentFirst, ...remaining];
     if (active && !prioritized.find((c) => c.id === active.id && c.type === active.type)) {
-      prioritized.unshift(active);
+      const activeConversationId = convKey(active, profile.userId);
+      const activeArchived = Boolean(archivedConversations[activeConversationId]);
+      if ((showArchivedChats && activeArchived) || (!showArchivedChats && !activeArchived)) {
+        prioritized.unshift(active);
+      }
     }
     return prioritized;
-  }, [visibleUsers, groups, search, showDirectory, recentConversations, active, profile.userId]);
+  }, [visibleUsers, groups, search, showDirectory, recentConversations, active, profile.userId, archivedConversations, showArchivedChats]);
 
   const onlineDirectoryUsers = useMemo(
     () => visibleUsers.filter((u) => Boolean(u.online)).sort((a, b) => a.username.localeCompare(b.username)),
@@ -309,6 +367,10 @@ export default function App() {
   useEffect(() => {
     setAboutDraft(profile.about || 'Hey there! I am using LAN Messenger.');
   }, [profile.about]);
+
+  useEffect(() => {
+    setNameDraft(profile.username || '');
+  }, [profile.username]);
 
   useEffect(() => {
     return () => {
@@ -402,6 +464,24 @@ export default function App() {
 
   useEffect(() => {
     const onDocClick = (event) => {
+      if (sideMenuRef.current && !sideMenuRef.current.contains(event.target)) {
+        setSideMenuOpen(false);
+      }
+      if (!event.target.closest('.chat-row-actions')) {
+        setChatRowMenuOpen('');
+      }
+    };
+
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('touchstart', onDocClick);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('touchstart', onDocClick);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onDocClick = (event) => {
       if (!emojiPickerRef.current) return;
       if (!emojiPickerRef.current.contains(event.target)) {
         setEmojiPickerOpen(false);
@@ -449,10 +529,11 @@ export default function App() {
   useEffect(() => {
     const boot = async () => {
       const savedSecret = await loadSetting('aesSecret');
-      const onboardingDone = await loadSetting('onboardingDone');
       const savedRecent = await loadSetting('recentConversations');
       const savedTemp = await loadSetting('tempChatSettings');
       const savedPin = await loadSetting('profilePin');
+      const savedArchived = await loadSetting('archivedConversations');
+      const savedMuted = await loadSetting('mutedConversations');
 
       if (savedSecret) {
         setAesSecret(savedSecret);
@@ -463,12 +544,13 @@ export default function App() {
       setOnboardingPin(typeof savedPin === 'string' ? savedPin : '');
       setLoginPin(typeof savedPin === 'string' ? savedPin : '');
       setProfilePin(typeof savedPin === 'string' ? savedPin : '');
-      setOnboardingOpen(false);
       setAuthScreenOpen(true);
       setAuthMode('login');
       authReadyRef.current = false;
       if (Array.isArray(savedRecent)) setRecentConversations(savedRecent);
       if (savedTemp && typeof savedTemp === 'object') setTempChatSettings(savedTemp);
+      if (savedArchived && typeof savedArchived === 'object') setArchivedConversations(savedArchived);
+      if (savedMuted && typeof savedMuted === 'object') setMutedConversations(savedMuted);
     };
 
     void boot();
@@ -494,6 +576,30 @@ export default function App() {
   useEffect(() => {
     activeConversationRef.current = activeConversationKey;
   }, [activeConversationKey]);
+
+  useEffect(() => {
+    if (!activeGroup) {
+      setGroupInfo({ group: null, members: [] });
+      setGroupNameEditDraft('');
+      setGroupMembersToAdd([]);
+      return;
+    }
+    wsRef.current?.send('group-meta-request', { groupId: activeGroup.id });
+  }, [activeGroup]);
+
+  useEffect(() => {
+    if (showInfoPanel && activeGroup) {
+      wsRef.current?.send('group-meta-request', { groupId: activeGroup.id });
+    }
+  }, [showInfoPanel, activeGroup]);
+
+  useEffect(() => {
+    if (!activeGroupInfo?.group?.name) {
+      setGroupNameEditDraft('');
+      return;
+    }
+    setGroupNameEditDraft(activeGroupInfo.group.name);
+  }, [activeGroupInfo?.group?.name]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -529,14 +635,16 @@ export default function App() {
   const openNewUserSetup = () => {
     setAuthMode('signup');
     authModeRef.current = 'new';
-    setOnboardingOpen(false);
+    setOnboardingPin('');
+    setOnboardingPinConfirm('');
+    setSignupPinField('create');
     setAuthScreenOpen(true);
   };
 
   const submitOldUserLogin = async () => {
     const cleanedPin = loginPin.trim();
-    if (!/^\d{4}$/.test(cleanedPin)) {
-      window.alert('Enter a valid 4-digit PIN.');
+    if (!/^(\d{4}|\d{6})$/.test(cleanedPin)) {
+      window.alert('Enter a valid 4-digit or 6-digit PIN.');
       return;
     }
 
@@ -546,7 +654,6 @@ export default function App() {
     setAuthMode('login');
     authModeRef.current = 'login';
     setAuthScreenOpen(false);
-    setOnboardingOpen(false);
     await saveSetting('profilePin', cleanedPin);
 
     if (wsRef.current?.ws && wsRef.current.ws.readyState === WebSocket.OPEN) {
@@ -653,25 +760,49 @@ export default function App() {
       onMessage: async (data) => {
         if (data.action === 'error') {
           if (data.code === 'invalid-pin') {
-            window.alert('Invalid PIN. Please use exactly 4 digits.');
-            authReadyRef.current = false;
-            setAuthScreenOpen(true);
-            setAuthMode('login');
+            window.alert('Invalid PIN. Please use 4 digits or 6 digits.');
+            if (authScreenOpen) {
+              authReadyRef.current = false;
+              setAuthScreenOpen(true);
+              setAuthMode('login');
+            }
           }
           if (data.code === 'pin-not-found') {
             window.alert('No account found with this PIN. Choose Signup or use the correct PIN.');
-            authReadyRef.current = false;
-            setAuthScreenOpen(true);
-            setAuthMode('login');
+            if (authScreenOpen) {
+              authReadyRef.current = false;
+              setAuthScreenOpen(true);
+              setAuthMode('login');
+            }
           }
           if (data.code === 'pin-in-use') {
             window.alert('This PIN is already used by another account. Choose a different PIN.');
-            authReadyRef.current = false;
-            setAuthScreenOpen(true);
-            setAuthMode('signup');
+            if (authScreenOpen) {
+              authReadyRef.current = false;
+              setAuthScreenOpen(true);
+              setAuthMode('signup');
+            }
           }
           if (data.code === 'forbidden-group-access') {
             window.alert('You do not have access to this group chat.');
+          }
+          if (data.code === 'forbidden-group-admin') {
+            window.alert('Only group admins can add or remove members.');
+          }
+          if (data.code === 'forbidden-group-owner') {
+            window.alert('Only the group creator can change member roles.');
+          }
+          if (data.code === 'cannot-remove-group-creator') {
+            window.alert('The group creator cannot be removed from the group.');
+          }
+          if (data.code === 'cannot-change-group-creator-role') {
+            window.alert('The group creator role cannot be changed.');
+          }
+          if (data.code === 'group-member-not-found') {
+            window.alert('Selected user is not in this group anymore.');
+          }
+          if (data.code === 'invalid-group-name') {
+            window.alert('Please enter a valid group name.');
           }
           if (data.code === 'invalid-voice-payload') {
             window.alert('Voice note failed to send. Please record again.');
@@ -689,7 +820,6 @@ export default function App() {
         if (data.action === 'hello-ack') {
           authReadyRef.current = true;
           setAuthScreenOpen(false);
-          setOnboardingOpen(false);
           setUsers(data.users || []);
           setGroups(data.groups || []);
           const nextProfile = {
@@ -714,16 +844,44 @@ export default function App() {
           return;
         }
 
+        if (data.action === 'group-meta-response' || data.action === 'group-meta-updated') {
+          if (data.group) {
+            setGroups((prev) => {
+              const exists = prev.some((g) => g.id === data.group.id);
+              if (!exists) return [data.group, ...prev];
+              return prev.map((g) => (g.id === data.group.id ? { ...g, ...data.group } : g));
+            });
+          }
+
+          if (data.group?.id === activeConversationRef.current?.replace('group:', '')) {
+            setGroupInfo({ group: data.group, members: data.members || [] });
+          }
+          return;
+        }
+
+        if (data.action === 'group-removed') {
+          setGroups((prev) => prev.filter((g) => g.id !== data.groupId));
+          setRecentConversations((prev) => prev.filter((id) => id !== `group:${data.groupId}`));
+          setArchivedConversations((prev) => {
+            const next = { ...prev };
+            delete next[`group:${data.groupId}`];
+            void saveSetting('archivedConversations', next);
+            return next;
+          });
+          if (activeConversationRef.current === `group:${data.groupId}`) {
+            setActive(null);
+            setMessages([]);
+            setShowInfoPanel(false);
+          }
+          return;
+        }
+
         if (data.action === 'group-members-added-ack') {
           if (data.count > 0) {
             window.alert(`Added ${data.count} member(s) to group.`);
           } else {
             window.alert('No new members were added.');
           }
-          return;
-        }
-
-        if (data.action === 'group-members-updated') {
           return;
         }
 
@@ -1107,24 +1265,16 @@ export default function App() {
     sendTyping(false);
   };
 
-  const resolveMembersFromInput = (memberInput) => {
-    const typed = (memberInput || '')
-      .split(',')
-      .map((v) => v.trim())
-      .filter(Boolean);
-
-    return typed
-      .map((entry) => {
-        const byName = visibleUsers.find((u) => u.username.toLowerCase() === entry.toLowerCase());
-        return byName?.id || entry;
-      })
-      .filter((id) => id !== profile.userId);
-  };
-
   const openCreateGroupDialog = () => {
     setGroupNameDraft('');
-    setGroupMembersDraft('');
+    setGroupSelectedMembers([]);
     setGroupDialogOpen(true);
+  };
+
+  const toggleGroupMemberSelection = (memberId) => {
+    setGroupSelectedMembers((prev) => (
+      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId]
+    ));
   };
 
   const createGroup = () => {
@@ -1134,24 +1284,57 @@ export default function App() {
       return;
     }
 
-    const members = resolveMembersFromInput(groupMembersDraft);
+    const members = groupSelectedMembers.filter((id) => id !== profile.userId);
 
     wsRef.current?.send('create-group', { name, members });
     setGroupDialogOpen(false);
     setGroupNameDraft('');
-    setGroupMembersDraft('');
+    setGroupSelectedMembers([]);
   };
 
   const addMembersToActiveGroup = () => {
     if (!active || active.type !== 'group') return;
-    const memberInput = window.prompt('Add members by username or user ID (comma separated)', '');
-    if (!memberInput) return;
-
-    const members = resolveMembersFromInput(memberInput);
-
-    if (!members.length) return;
-    wsRef.current?.send('add-group-members', { groupId: active.id, members });
+    setShowInfoPanel(true);
     setChatMenuOpen(false);
+  };
+
+  const toggleGroupAddCandidate = (memberId) => {
+    setGroupMembersToAdd((prev) => (
+      prev.includes(memberId)
+        ? prev.filter((id) => id !== memberId)
+        : [...prev, memberId]
+    ));
+  };
+
+  const saveActiveGroupName = () => {
+    if (!activeGroup) return;
+    const cleaned = groupNameEditDraft.trim().slice(0, 64);
+    if (!cleaned) {
+      window.alert('Group name is required.');
+      return;
+    }
+    wsRef.current?.send('group-rename', { groupId: activeGroup.id, name: cleaned });
+  };
+
+  const addSelectedMembersToActiveGroup = () => {
+    if (!activeGroup || !isActiveGroupAdmin) return;
+    const members = groupMembersToAdd.filter((id) => id && id !== profile.userId);
+    if (!members.length) {
+      window.alert('Select at least one user to add.');
+      return;
+    }
+    wsRef.current?.send('add-group-members', { groupId: activeGroup.id, members });
+    setGroupMembersToAdd([]);
+  };
+
+  const removeMemberFromActiveGroup = (memberId) => {
+    if (!activeGroup || !isActiveGroupAdmin) return;
+    wsRef.current?.send('remove-group-member', { groupId: activeGroup.id, memberId });
+  };
+
+  const setActiveGroupMemberRole = (memberId, role) => {
+    if (!activeGroup || !isActiveGroupCreator) return;
+    wsRef.current?.send('set-group-member-role', { groupId: activeGroup.id, memberId, role });
   };
 
   const resetVoiceDraft = () => {
@@ -1416,6 +1599,60 @@ export default function App() {
     setChatMenuOpen(false);
   };
 
+  const toggleMuteConversation = async (chat) => {
+    const conversationId = convKey(chat, profile.userId);
+    setMutedConversations((prev) => {
+      const next = { ...prev, [conversationId]: !prev[conversationId] };
+      void saveSetting('mutedConversations', next);
+      return next;
+    });
+    setChatRowMenuOpen('');
+  };
+
+  const archiveConversation = async (chat, archived) => {
+    const conversationId = convKey(chat, profile.userId);
+    setArchivedConversations((prev) => {
+      const next = { ...prev, [conversationId]: archived };
+      void saveSetting('archivedConversations', next);
+      return next;
+    });
+    setChatRowMenuOpen('');
+  };
+
+  const deleteConversation = async (chat) => {
+    const conversationId = convKey(chat, profile.userId);
+    const ok = window.confirm('Delete this chat history?');
+    if (!ok) return;
+
+    if (chat.type === 'direct') {
+      wsRef.current?.send('delete-chat', { peerId: chat.id });
+    } else {
+      wsRef.current?.send('delete-chat', { groupId: chat.id });
+    }
+
+    await deleteMessagesByConversation(conversationId);
+    clearUnread(conversationId);
+    setRecentConversations((prev) => {
+      const next = prev.filter((id) => id !== conversationId);
+      void saveSetting('recentConversations', next);
+      return next;
+    });
+
+    if (active && active.id === chat.id && active.type === chat.type) {
+      setMessages([]);
+      setActive(null);
+    }
+
+    setArchivedConversations((prev) => {
+      if (!prev[conversationId]) return prev;
+      const next = { ...prev };
+      delete next[conversationId];
+      void saveSetting('archivedConversations', next);
+      return next;
+    });
+    setChatRowMenuOpen('');
+  };
+
   const setTemporaryChat = (durationMs) => {
     if (!active) return;
     if (active.type === 'direct') {
@@ -1556,12 +1793,49 @@ export default function App() {
     sendHello(nextProfile, { profileUpdate: true });
   };
 
+  const saveProfileName = () => {
+    const cleaned = nameDraft.trim().slice(0, 30);
+    if (!cleaned) {
+      window.alert('Name is required.');
+      return;
+    }
+
+    const nextProfile = { ...profileRef.current, username: cleaned };
+    setProfile(nextProfile);
+    sendHello(nextProfile, { profileUpdate: true });
+  };
+
+  const saveProfilePin = async () => {
+    const cleanedPin = newPinDraft.trim();
+    const cleanedConfirm = newPinConfirmDraft.trim();
+    if (!/^(\d{4}|\d{6})$/.test(cleanedPin) || !/^(\d{4}|\d{6})$/.test(cleanedConfirm)) {
+      window.alert('PIN must be 4 digits or 6 digits.');
+      return;
+    }
+    if (cleanedPin !== cleanedConfirm) {
+      window.alert('PIN and Confirm PIN must match.');
+      return;
+    }
+
+    setProfilePin(cleanedPin);
+    profilePinRef.current = cleanedPin;
+    await saveSetting('profilePin', cleanedPin);
+    setNewPinDraft('');
+    setNewPinConfirmDraft('');
+    sendHello(profileRef.current, { profileUpdate: true });
+  };
+
   const saveOnboarding = async () => {
     const cleanedName = onboardingName.trim().slice(0, 30);
     const cleanedAbout = onboardingAbout.trim().slice(0, 120) || 'Hey there! I am using LAN Messenger.';
     const cleanedPin = onboardingPin.trim();
-    if (!cleanedName || !/^\d{4}$/.test(cleanedPin)) {
-      window.alert('Username and a 4-digit PIN are required.');
+    const cleanedConfirmPin = onboardingPinConfirm.trim();
+    if (!cleanedName || !/^(\d{4}|\d{6})$/.test(cleanedPin) || !/^(\d{4}|\d{6})$/.test(cleanedConfirmPin)) {
+      window.alert('Username is required and PIN must be 4 digits or 6 digits.');
+      return;
+    }
+    if (cleanedPin !== cleanedConfirmPin) {
+      window.alert('PIN and Confirm PIN must match.');
       return;
     }
 
@@ -1582,8 +1856,7 @@ export default function App() {
     setAesSecret(cleanedKey);
     await saveSetting('aesSecret', cleanedKey);
     await saveSetting('profilePin', cleanedPin);
-    await saveSetting('onboardingDone', true);
-    setOnboardingOpen(false);
+    setOnboardingPinConfirm('');
 
     sendHello(nextProfile, { profileUpdate: false, authMode: 'new' });
   };
@@ -1622,6 +1895,40 @@ export default function App() {
     void sendText();
   };
 
+  const appendPin = (prev, digit) => (prev.length < 6 ? `${prev}${digit}` : prev);
+  const trimPin = (prev) => prev.slice(0, -1);
+  const loginPinMasked = loginPin.replace(/\d/g, '•');
+  const signupPinMasked = onboardingPin.replace(/\d/g, '•');
+  const signupPinConfirmMasked = onboardingPinConfirm.replace(/\d/g, '•');
+
+  const handleLoginPinDigit = (digit) => {
+    setLoginPin((prev) => appendPin(prev, digit));
+  };
+
+  const handleSignupPinDigit = (digit) => {
+    if (signupPinField === 'confirm') {
+      setOnboardingPinConfirm((prev) => appendPin(prev, digit));
+      return;
+    }
+    setOnboardingPin((prev) => appendPin(prev, digit));
+  };
+
+  const handleSignupPinBackspace = () => {
+    if (signupPinField === 'confirm') {
+      setOnboardingPinConfirm((prev) => trimPin(prev));
+      return;
+    }
+    setOnboardingPin((prev) => trimPin(prev));
+  };
+
+  const handleSignupPinClear = () => {
+    if (signupPinField === 'confirm') {
+      setOnboardingPinConfirm('');
+      return;
+    }
+    setOnboardingPin('');
+  };
+
   return (
     <>
       {!authScreenOpen && (
@@ -1629,7 +1936,7 @@ export default function App() {
         <aside className="main-side">
           <header className="common-header">
             <div className="common-header-start">
-              <button className="u-flex js-user-nav" onClick={() => setOnboardingOpen(true)}>
+              <button className="u-flex js-user-nav" onClick={() => setShowInfoPanel(true)}>
                 <Avatar name={profile.username} avatar={profile.avatar} />
                 <div className="common-header-content">
                   <h1 className="common-header-title">{profile.username}</h1>
@@ -1641,6 +1948,22 @@ export default function App() {
               <ul className="common-nav-list">
                 <li className="common-nav-item"><button className="common-button" onClick={() => setTheme(getSystemTheme())}><span className="icon icon-status" aria-label="status" /></button></li>
                 <li className="common-nav-item"><button className={`common-button ${showDirectory ? 'is-active-control' : ''}`} onClick={() => setShowDirectory((v) => !v)}><span className="icon icon-new-chat" aria-label="new chat" /></button></li>
+                <li className="common-nav-item chat-side-overflow" ref={sideMenuRef}>
+                  <button className="common-button" onClick={() => setSideMenuOpen((v) => !v)}><span className="icon icon-menu" aria-label="chat options" /></button>
+                  {sideMenuOpen && (
+                    <div className="chat-side-overflow-menu">
+                      <button
+                        className="chat-overflow-item"
+                        onClick={() => {
+                          setShowArchivedChats((v) => !v);
+                          setSideMenuOpen(false);
+                        }}
+                      >
+                        {showArchivedChats ? 'Show active chats' : 'Show archived chats'}
+                      </button>
+                    </div>
+                  )}
+                </li>
                 <li className="common-nav-item"><button className="common-button" onClick={() => setShowInfoPanel((v) => !v)}><span className="icon icon-menu" aria-label="menu" /></button></li>
               </ul>
             </nav>
@@ -1721,7 +2044,7 @@ export default function App() {
               )}
 
               {!showDirectory && combinedChats.length === 0 && (
-                <li className="chats-empty">No recent chats yet. Tap New Chat to view all users.</li>
+                <li className="chats-empty">{showArchivedChats ? 'No archived chats yet.' : 'No recent chats yet. Tap New Chat to view all users.'}</li>
               )}
 
               {!showDirectory && combinedChats.map((chat) => {
@@ -1729,22 +2052,45 @@ export default function App() {
                 const conversationId = convKey(chat, profile.userId);
                 const unread = unreadCounts[conversationId] || 0;
                 const chatAvatar = chat.type === 'direct' ? userById.get(chat.id)?.avatar : '';
+                const menuKey = `${chat.type}:${chat.id}`;
+                const isMutedConversation = Boolean(mutedConversations[conversationId]);
+                const isArchivedConversation = Boolean(archivedConversations[conversationId]);
                 return (
                   <li className="chats-item" key={`${chat.type}:${chat.id}`}>
-                    <button className={`chats-item-button js-chat-button ${isActive ? 'is-active' : ''}`} onClick={() => openChat(chat)}>
-                      <Avatar name={chat.label} avatar={chatAvatar} />
-                      <header className="chats-item-header">
-                        <h3 className="chats-item-title">{chat.label}</h3>
-                        <time className="chats-item-time">{fmtTime(Date.now())}</time>
-                      </header>
-                      <div className="chats-item-content">
-                        <p className="chats-item-last">{chat.type === 'group' ? 'Group chat' : chat.online ? 'Online now' : 'Offline'}</p>
-                        <ul className="chats-item-info">
-                          {!chat.online && <li className="chats-item-info-item"><span className="icon-silent">🔇</span></li>}
-                          {unread > 0 && <li className="chats-item-info-item"><span className="unread-messsages">{unread > 99 ? '99+' : unread}</span></li>}
-                        </ul>
+                    <div className="chats-item-row">
+                      <button className={`chats-item-button js-chat-button ${isActive ? 'is-active' : ''}`} onClick={() => openChat(chat)}>
+                        <Avatar name={chat.label} avatar={chatAvatar} />
+                        <header className="chats-item-header">
+                          <h3 className="chats-item-title">{chat.label}</h3>
+                          <time className="chats-item-time">{fmtTime(Date.now())}</time>
+                        </header>
+                        <div className="chats-item-content">
+                          <p className="chats-item-last">{chat.type === 'group' ? 'Group chat' : chat.online ? 'Online now' : 'Offline'}</p>
+                          <ul className="chats-item-info">
+                            {(isMutedConversation || !chat.online) && <li className="chats-item-info-item"><span className="icon-silent">🔇</span></li>}
+                            {unread > 0 && <li className="chats-item-info-item"><span className="unread-messsages">{unread > 99 ? '99+' : unread}</span></li>}
+                          </ul>
+                        </div>
+                      </button>
+
+                      <div className="chat-row-actions">
+                        <button
+                          type="button"
+                          className="chat-row-toggle"
+                          aria-label="chat options"
+                          onClick={() => setChatRowMenuOpen((prev) => (prev === menuKey ? '' : menuKey))}
+                        >
+                          <span className="chat-row-toggle-icon" aria-hidden="true" />
+                        </button>
+                        {chatRowMenuOpen === menuKey && (
+                          <div className="chat-row-menu">
+                            <button className="chat-overflow-item" onClick={() => void toggleMuteConversation(chat)}>{isMutedConversation ? 'Unmute notifications' : 'Mute notifications'}</button>
+                            <button className="chat-overflow-item" onClick={() => void archiveConversation(chat, !isArchivedConversation)}>{isArchivedConversation ? 'Unarchive chat' : 'Archive chat'}</button>
+                            <button className="chat-overflow-item danger" onClick={() => void deleteConversation(chat)}>Delete chat</button>
+                          </div>
+                        )}
                       </div>
-                    </button>
+                    </div>
                   </li>
                 );
               })}
@@ -1756,7 +2102,17 @@ export default function App() {
           <header className="common-header">
             <div className="common-header-start">
               <button className="common-button is-only-mobile u-margin-end js-back" onClick={() => setIsMessageOpen(false)}><span className="icon icon-back" aria-label="back" /></button>
-              <button className="u-flex js-side-info-button" onClick={() => setShowInfoPanel((v) => !v)}>
+              <button
+                className="u-flex js-side-info-button"
+                onClick={() => {
+                  if (active?.type === 'group') {
+                    setShowInfoPanel(true);
+                    wsRef.current?.send('group-meta-request', { groupId: active.id });
+                    return;
+                  }
+                  setShowInfoPanel((v) => !v);
+                }}
+              >
                 <Avatar
                   name={activeName}
                   avatar={active?.type === 'direct' ? userById.get(active.id)?.avatar : ''}
@@ -1779,7 +2135,7 @@ export default function App() {
                       <button className="chat-overflow-item" disabled={!active} onClick={() => setTemporaryChat(15 * 60 * 1000)}>Temporary chat: 15m</button>
                       <button className="chat-overflow-item" disabled={!active} onClick={() => setTemporaryChat(60 * 60 * 1000)}>Temporary chat: 1h</button>
                       <button className="chat-overflow-item" disabled={!active} onClick={() => setTemporaryChat(2 * 60 * 60 * 1000)}>Temporary chat: 2h</button>
-                      {active?.type === 'group' && <button className="chat-overflow-item" onClick={addMembersToActiveGroup}>Add members</button>}
+                      {active?.type === 'group' && <button className="chat-overflow-item" onClick={addMembersToActiveGroup}>Manage group</button>}
                       <button className="chat-overflow-item" disabled={!active} onClick={clearTemporaryChat}>Temporary chat: Off</button>
                       <button className="chat-overflow-item danger" disabled={!active} onClick={() => void deleteActiveChat()}>Delete chat history</button>
                     </div>
@@ -1924,115 +2280,266 @@ export default function App() {
           <header className="common-header">
             <button className="common-button js-close-main-info" onClick={() => setShowInfoPanel(false)}><span className="icon icon-close" aria-label="close" /></button>
             <div className="common-header-content">
-              <h3 className="common-header-title">Profile</h3>
+              <h3 className="common-header-title">{active?.type === 'group' ? 'Group Info' : 'Profile'}</h3>
             </div>
           </header>
-          <div className="main-info-content wa-profile-content">
-            <section className="wa-profile-hero">
-              <button className="wa-profile-photo-button" onClick={triggerProfilePhotoPicker} type="button" title="Click to change profile photo">
-                <Avatar name={profile.username} avatar={profile.avatar} className="main-info-image" />
-              </button>
-              <h4 className="wa-profile-name">{profile.username}</h4>
-            </section>
-
-            <section className="wa-profile-group">
-              <article className="wa-profile-row">
-                <p className="wa-profile-label">Name</p>
-                <p className="wa-profile-value">{profile.username}</p>
-              </article>
-              <article className="wa-profile-row">
-                <p className="wa-profile-label">About</p>
-                <input
-                  className="wa-profile-input"
-                  maxLength={120}
-                  value={aboutDraft}
-                  onChange={(e) => setAboutDraft(e.target.value)}
+          {active?.type === 'group' ? (
+            <div className="main-info-content wa-profile-content">
+              <section className="wa-profile-hero">
+                <Avatar
+                  name={activeGroupInfo?.group?.name || activeName}
+                  avatar=""
+                  className="main-info-image"
                 />
-                <button className="common-button wa-profile-save" onClick={saveAbout}>Save</button>
-              </article>
-              <article className="wa-profile-row">
-                <p className="wa-profile-label">Encryption</p>
-                <p className="wa-profile-value">AES-GCM</p>
-              </article>
-            </section>
+                <h4 className="wa-profile-name">{activeGroupInfo?.group?.name || activeName}</h4>
+              </section>
 
-            <section className="wa-profile-group">
-              <div className="profile-photo-actions">
-                <button className="common-button profile-photo-button" onClick={triggerProfilePhotoPicker}>Change profile photo</button>
-                {profile.avatar && <button className="common-button profile-photo-remove" onClick={clearProfilePhoto}>Remove photo</button>}
-              </div>
-            </section>
-          </div>
+              {!activeGroupInfo && (
+                <section className="wa-profile-group">
+                  <article className="wa-profile-row">
+                    <p className="wa-profile-value">Loading group details...</p>
+                  </article>
+                </section>
+              )}
+
+              {activeGroupInfo && (
+                <>
+                  <section className="wa-profile-group">
+                    <article className="wa-profile-row">
+                      <p className="wa-profile-label">Group Name</p>
+                      <input
+                        className="wa-profile-input"
+                        maxLength={64}
+                        value={groupNameEditDraft}
+                        onChange={(e) => setGroupNameEditDraft(e.target.value)}
+                      />
+                      <button className="common-button wa-profile-save" onClick={saveActiveGroupName}>Save Name</button>
+                    </article>
+                    <article className="wa-profile-row">
+                      <p className="wa-profile-label">Members ({activeGroupMembers.length})</p>
+                      <div className="group-members-list">
+                        {activeGroupMembers.map((member) => {
+                          const isCreator = member.id === activeGroupInfo.group.created_by;
+                          const canChangeRole = isActiveGroupCreator && !isCreator;
+                          const canRemove = isActiveGroupAdmin && !isCreator;
+                          return (
+                            <div key={member.id} className="group-member-row">
+                              <div className="group-member-main">
+                                <Avatar name={member.username} avatar={member.avatar} className="group-member-avatar" />
+                                <div className="group-member-text">
+                                  <p className="group-member-title">
+                                    {member.username}
+                                    {member.id === profile.userId ? ' (You)' : ''}
+                                  </p>
+                                  <p className="group-member-meta">
+                                    {isCreator ? 'Creator' : member.role === 'admin' ? 'Admin' : 'User'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="group-member-actions">
+                                {canChangeRole && member.role !== 'admin' && (
+                                  <button className="common-button wa-profile-save" onClick={() => setActiveGroupMemberRole(member.id, 'admin')}>Make Admin</button>
+                                )}
+                                {canChangeRole && member.role === 'admin' && (
+                                  <button className="common-button wa-profile-save" onClick={() => setActiveGroupMemberRole(member.id, 'member')}>Make User</button>
+                                )}
+                                {canRemove && (
+                                  <button className="common-button wa-profile-save danger" onClick={() => removeMemberFromActiveGroup(member.id)}>Remove</button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </article>
+                  </section>
+
+                  {isActiveGroupAdmin && (
+                    <section className="wa-profile-group">
+                      <article className="wa-profile-row">
+                        <p className="wa-profile-label">Add Members</p>
+                        <div className="group-member-picker" role="listbox" aria-label="Select members to add" aria-multiselectable="true">
+                          {addableActiveGroupUsers.length === 0 && <p className="group-member-empty">All users are already in this group.</p>}
+                          {addableActiveGroupUsers.map((u) => {
+                            const checked = groupMembersToAdd.includes(u.id);
+                            return (
+                              <label key={u.id} className={`group-member-option ${checked ? 'is-selected' : ''}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleGroupAddCandidate(u.id)}
+                                />
+                                <span className="group-member-name">{u.username}</span>
+                                <span className="group-member-status">{u.online ? 'Online' : 'Offline'}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <button className="common-button wa-profile-save" onClick={addSelectedMembersToActiveGroup}>Add Selected Members</button>
+                      </article>
+                    </section>
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="main-info-content wa-profile-content">
+              <section className="wa-profile-hero">
+                <button className="wa-profile-photo-button" onClick={triggerProfilePhotoPicker} type="button" title="Click to change profile photo">
+                  <Avatar name={profile.username} avatar={profile.avatar} className="main-info-image" />
+                </button>
+                <h4 className="wa-profile-name">{profile.username}</h4>
+              </section>
+
+              <section className="wa-profile-group">
+                <article className="wa-profile-row">
+                  <p className="wa-profile-label">Name</p>
+                  <input
+                    className="wa-profile-input"
+                    maxLength={30}
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                  />
+                  <button className="common-button wa-profile-save" onClick={saveProfileName}>Save</button>
+                </article>
+                <article className="wa-profile-row">
+                  <p className="wa-profile-label">About</p>
+                  <input
+                    className="wa-profile-input"
+                    maxLength={120}
+                    value={aboutDraft}
+                    onChange={(e) => setAboutDraft(e.target.value)}
+                  />
+                  <button className="common-button wa-profile-save" onClick={saveAbout}>Save</button>
+                </article>
+                <article className="wa-profile-row">
+                  <p className="wa-profile-label">Change PIN</p>
+                  <input
+                    className="wa-profile-input"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    value={newPinDraft}
+                    onChange={(e) => setNewPinDraft(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="New PIN (4 or 6 digits)"
+                  />
+                  <input
+                    className="wa-profile-input"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    value={newPinConfirmDraft}
+                    onChange={(e) => setNewPinConfirmDraft(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="Confirm PIN"
+                  />
+                  <p className="wa-profile-hint">Use 4 digits or 6 digits.</p>
+                  <button className="common-button wa-profile-save" onClick={() => void saveProfilePin()}>Update PIN</button>
+                </article>
+                <article className="wa-profile-row">
+                  <p className="wa-profile-label">Encryption</p>
+                  <p className="wa-profile-value">AES-GCM</p>
+                </article>
+              </section>
+
+              <section className="wa-profile-group">
+                <div className="profile-photo-actions">
+                  <button className="common-button profile-photo-button" onClick={triggerProfilePhotoPicker}>Change profile photo</button>
+                  {profile.avatar && <button className="common-button profile-photo-remove" onClick={clearProfilePhoto}>Remove photo</button>}
+                </div>
+              </section>
+            </div>
+          )}
         </aside>
       </section>
       )}
 
       {authScreenOpen && (
         <section className="auth-page">
-          <div className="wizard-card auth-card">
-            <h2>Welcome to LAN Messenger</h2>
-            <p>{authMode === 'signup' ? 'Create a new account to start chatting.' : 'Login with your 4-digit PIN to continue.'}</p>
+          <div className={`auth-shell ${authMode === 'signup' ? 'is-signup' : 'is-login'}`}>
+            <section className="auth-panel auth-panel-signup" aria-label="Create account panel">
+              <h2 className="auth-title">Create Account</h2>
+              <p className="auth-subtitle">Create your LAN profile and set a 4-digit or 6-digit PIN.</p>
+              <label className="auth-label">
+                Username
+                <input
+                  className="auth-input"
+                  value={onboardingName}
+                  maxLength={30}
+                  onChange={(e) => setOnboardingName(e.target.value)}
+                  placeholder="Your name"
+                />
+              </label>
+              <label className="auth-label">
+                About
+                <input
+                  className="auth-input"
+                  value={onboardingAbout}
+                  maxLength={120}
+                  onChange={(e) => setOnboardingAbout(e.target.value)}
+                  placeholder="Short status"
+                />
+              </label>
+              <label className="auth-label">
+                Create PIN
+                <button
+                  type="button"
+                  className={`auth-pin-display ${signupPinField === 'create' ? 'is-active' : ''}`}
+                  onClick={() => setSignupPinField('create')}
+                >
+                  {signupPinMasked || '•••• or ••••••'}
+                </button>
+              </label>
+              <label className="auth-label">
+                Confirm PIN
+                <button
+                  type="button"
+                  className={`auth-pin-display ${signupPinField === 'confirm' ? 'is-active' : ''}`}
+                  onClick={() => setSignupPinField('confirm')}
+                >
+                  {signupPinConfirmMasked || '•••• or ••••••'}
+                </button>
+              </label>
+              <PinPad
+                onDigit={handleSignupPinDigit}
+                onBackspace={handleSignupPinBackspace}
+                onClear={handleSignupPinClear}
+              />
+              <button className="auth-submit" type="button" onClick={() => void saveOnboarding()}>SIGN UP</button>
+            </section>
 
-            {authMode === 'login' && (
-              <>
-                <label>
-                  Enter your 4-digit PIN
-                  <input
-                    className="text-input wizard-input"
-                    value={loginPin}
-                    maxLength={4}
-                    inputMode="numeric"
-                    pattern="[0-9]{4}"
-                    onChange={(e) => setLoginPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    placeholder="0000"
-                  />
-                </label>
-                <div className="auth-actions">
-                  <button className="common-button" onClick={openNewUserSetup}>Signup</button>
-                  <button className="common-button wizard-save" onClick={() => void submitOldUserLogin()}>Login</button>
-                </div>
-              </>
-            )}
+            <section className="auth-panel auth-panel-login" aria-label="Sign in panel">
+              <h2 className="auth-title">Sign In</h2>
+              <p className="auth-subtitle">Use your 4-digit or 6-digit PIN.</p>
+              <label className="auth-label">
+                PIN
+                <div className="auth-pin-display">{loginPinMasked || '•••• or ••••••'}</div>
+              </label>
+              <PinPad
+                onDigit={handleLoginPinDigit}
+                onBackspace={() => setLoginPin((prev) => trimPin(prev))}
+                onClear={() => setLoginPin('')}
+              />
+              <button className="auth-submit" type="button" onClick={() => void submitOldUserLogin()}>SIGN IN</button>
+              <button className="auth-secondary" type="button" onClick={openNewUserSetup}>SIGN UP</button>
+            </section>
 
-            {authMode === 'signup' && (
-              <>
-                <label>
-                  Username
-                  <input
-                    className="text-input wizard-input"
-                    value={onboardingName}
-                    maxLength={30}
-                    onChange={(e) => setOnboardingName(e.target.value)}
-                  />
-                </label>
-                <label>
-                  About
-                  <input
-                    className="text-input wizard-input"
-                    value={onboardingAbout}
-                    maxLength={120}
-                    onChange={(e) => setOnboardingAbout(e.target.value)}
-                    placeholder="Write a short status"
-                  />
-                </label>
-                <label>
-                  Create 4-digit PIN
-                  <input
-                    className="text-input wizard-input"
-                    value={onboardingPin}
-                    maxLength={4}
-                    inputMode="numeric"
-                    pattern="[0-9]{4}"
-                    onChange={(e) => setOnboardingPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    placeholder="0000"
-                  />
-                </label>
-                <div className="auth-actions">
-                  <button className="common-button" onClick={() => setAuthMode('login')}>Back to Login</button>
-                  <button className="common-button wizard-save" onClick={() => void saveOnboarding()}>Signup</button>
+            <aside className="auth-switch">
+              <div className="auth-orb auth-orb-one" />
+              <div className="auth-orb auth-orb-two" />
+              {authMode === 'signup' ? (
+                <div className="auth-switch-content">
+                  <h3 className="auth-switch-title">Welcome Back!</h3>
+                  <p className="auth-switch-copy">Sign in using your PIN to continue your chats.</p>
+                  <button type="button" className="auth-switch-button" onClick={() => setAuthMode('login')}>SIGN IN</button>
                 </div>
-              </>
-            )}
+              ) : (
+                <div className="auth-switch-content">
+                  <h3 className="auth-switch-title">Hello Friend!</h3>
+                  <p className="auth-switch-copy">Create your account and start chatting securely.</p>
+                  <button type="button" className="auth-switch-button" onClick={openNewUserSetup}>SIGN UP</button>
+                </div>
+              )}
+            </aside>
           </div>
         </section>
       )}
@@ -2041,7 +2548,7 @@ export default function App() {
         <div className="wizard-overlay" onClick={() => setGroupDialogOpen(false)}>
           <div className="wizard-card group-dialog" onClick={(e) => e.stopPropagation()}>
             <h2>Create New Group</h2>
-            <p>Add a name and optional members (username or user ID, comma separated).</p>
+            <p>Add a name and select optional members.</p>
             <label>
               Group Name
               <input
@@ -2054,63 +2561,27 @@ export default function App() {
             </label>
             <label>
               Members (optional)
-              <input
-                className="text-input wizard-input"
-                value={groupMembersDraft}
-                maxLength={280}
-                onChange={(e) => setGroupMembersDraft(e.target.value)}
-                placeholder="alice, bob, user-id-123"
-              />
+              <div className="group-member-picker" role="listbox" aria-label="Select group members" aria-multiselectable="true">
+                {visibleUsers.length === 0 && <p className="group-member-empty">No users available right now.</p>}
+                {visibleUsers.map((u) => {
+                  const checked = groupSelectedMembers.includes(u.id);
+                  return (
+                    <label key={u.id} className={`group-member-option ${checked ? 'is-selected' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleGroupMemberSelection(u.id)}
+                      />
+                      <span className="group-member-name">{u.username}</span>
+                      <span className="group-member-status">{u.online ? 'Online' : 'Offline'}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </label>
             <div className="wizard-actions group-dialog-actions">
               <button className="common-button" onClick={() => setGroupDialogOpen(false)}>Cancel</button>
               <button className="common-button wizard-save" onClick={createGroup}>Create Group</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!authScreenOpen && onboardingOpen && (
-        <div className="wizard-overlay">
-          <div className="wizard-card">
-            <h2>Welcome to LAN Messenger</h2>
-            <p>Set your profile and a 4-digit PIN to access the same chats on other devices.</p>
-            <div className="wizard-photo-row">
-              <Avatar name={onboardingName || profile.username} avatar={profile.avatar} className="wizard-avatar" />
-              <div className="wizard-photo-actions">
-                <button className="common-button wizard-photo-button" onClick={triggerProfilePhotoPicker}>Add profile photo</button>
-                {profile.avatar && <button className="common-button wizard-photo-remove" onClick={clearProfilePhoto}>Remove</button>}
-              </div>
-            </div>
-            <label>
-              Username
-              <input className="text-input wizard-input" value={onboardingName} maxLength={30} onChange={(e) => setOnboardingName(e.target.value)} />
-            </label>
-            <label>
-              About
-              <input
-                className="text-input wizard-input"
-                value={onboardingAbout}
-                maxLength={120}
-                onChange={(e) => setOnboardingAbout(e.target.value)}
-                placeholder="Write a short status"
-              />
-            </label>
-            <label>
-              4-digit PIN
-              <input
-                className="text-input wizard-input"
-                value={onboardingPin}
-                maxLength={4}
-                inputMode="numeric"
-                pattern="[0-9]{4}"
-                onChange={(e) => setOnboardingPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="0000"
-              />
-            </label>
-            <div className="wizard-actions">
-              <button className="common-button" onClick={() => setOnboardingOpen(false)}>Later</button>
-              <button className="common-button wizard-save" onClick={() => void saveOnboarding()}>Save</button>
             </div>
           </div>
         </div>
