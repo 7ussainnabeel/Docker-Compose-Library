@@ -1,0 +1,9 @@
+Created: 2026-03-30T19:45:52Z
+Project: LAN Messenger local_chat
+Docker image: local_chat-lan-messenger:latest
+Included files:
+- backend-node_modules.tgz
+- frontend-node_modules.tgz
+- frontend-dist.tgz
+- lan-messenger-image.tar
+- node20-bookworm-slim.tar

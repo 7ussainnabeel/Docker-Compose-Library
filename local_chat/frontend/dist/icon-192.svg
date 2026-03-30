@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" role="img" aria-label="LAN Messenger Icon">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="42" fill="url(#g)" />
+  <circle cx="62" cy="76" r="18" fill="#ecfeff" />
+  <circle cx="130" cy="76" r="18" fill="#ecfeff" opacity="0.86" />
+  <path d="M38 132c7-18 21-27 42-27s35 9 42 27" fill="none" stroke="#ecfeff" stroke-width="14" stroke-linecap="round" />
+  <path d="M96 54v84" stroke="#93c5fd" stroke-width="5" stroke-dasharray="4 7" />
+</svg>

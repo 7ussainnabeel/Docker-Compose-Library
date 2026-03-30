@@ -79,6 +79,30 @@ cd frontend && npm install && npm run build
 cd ../backend && npm install && npm start
 ```
 
+## Offline Install and Run
+
+This project includes an offline bundle system in `offline/`.
+
+Prepare while internet is available:
+
+```bash
+./offline/offline.sh prepare
+```
+
+Run offline with Docker (recommended):
+
+```bash
+./offline/offline.sh run docker
+```
+
+Run offline with npm fallback:
+
+```bash
+./offline/offline.sh run npm
+```
+
+Detailed instructions are in `offline/README.md`.
+
 ## Key Features Implemented
 
 - UUID user identity with editable username and optional avatar field in profile model
