@@ -23,7 +23,7 @@ const RATE_WINDOW_MS = Number(process.env.RATE_WINDOW_MS || 60000);
 const RATE_MAX_REQUESTS = Number(process.env.RATE_MAX_REQUESTS || 10000);
 const MAX_TEXT_LENGTH = Number(process.env.MAX_TEXT_LENGTH || 3000);
 const MAX_TEXT_CIPHER_LENGTH = Number(process.env.MAX_TEXT_CIPHER_LENGTH || MAX_TEXT_LENGTH * 120);
-const MAX_PHOTO_CIPHER_LENGTH = Number(process.env.MAX_PHOTO_CIPHER_LENGTH || 600000);
+const MAX_PHOTO_CIPHER_LENGTH = Number(process.env.MAX_PHOTO_CIPHER_LENGTH || 1000000);
 const MAX_DOCUMENT_CIPHER_LENGTH = Number(process.env.MAX_DOCUMENT_CIPHER_LENGTH || 500000);
 const MAX_GROUP_MEMBERS = Number(process.env.MAX_GROUP_MEMBERS || 128);
 const MAX_PENDING_PER_USER = Number(process.env.MAX_PENDING_PER_USER || 5000);
@@ -996,6 +996,7 @@ wss.on('connection', (ws) => {
 
       if (action === 'direct-message') {
         if (!data.to || !isValidEncryptedPayload(data.payload)) {
+          console.error('Invalid direct-message payload:', { to: data.to, ivLength: data.payload?.iv?.length, cipherLength: data.payload?.cipher?.length });
           safeSend(ws, { action: 'error', code: 'invalid-direct-payload' });
           return;
         }
@@ -1006,12 +1007,14 @@ wss.on('connection', (ws) => {
         if (data.contentType === 'photo') {
           contentType = 'photo';
           maxCipherLength = MAX_PHOTO_CIPHER_LENGTH;
+          console.log('Receiving photo message:', { cipherLength: data.payload.cipher.length, maxAllowed: maxCipherLength });
         } else if (data.contentType === 'document') {
           contentType = 'document';
           maxCipherLength = MAX_DOCUMENT_CIPHER_LENGTH;
         }
         
         if ((data.payload.cipher || '').length > maxCipherLength) {
+          console.error('Photo too large during send:', { contentType, cipherLength: data.payload.cipher.length, maxAllowed: maxCipherLength });
           safeSend(ws, { action: 'error', code: 'message-too-large' });
           return;
         }
@@ -1034,16 +1037,22 @@ wss.on('connection', (ws) => {
         if (contentType === 'photo') messageKind = 'direct-photo';
         else if (contentType === 'document') messageKind = 'direct-document';
         
-        statements.insertMessage.run({
-          id: event.id,
-          kind: messageKind,
-          from_user: event.from,
-          to_user: event.to,
-          group_id: null,
-          payload: JSON.stringify({ encrypted: event.payload, expiresAt }),
-          mime_type: 'application/json',
-          created_at: event.createdAt
-        });
+        try {
+          statements.insertMessage.run({
+            id: event.id,
+            kind: messageKind,
+            from_user: event.from,
+            to_user: event.to,
+            group_id: null,
+            payload: JSON.stringify({ encrypted: event.payload, expiresAt }),
+            mime_type: 'application/json',
+            created_at: event.createdAt
+          });
+        } catch (err) {
+          console.error('Failed to insert direct-message:', { error: err.message, id: event.id, kind: messageKind });
+          safeSend(ws, { action: 'error', code: 'server-processing-error' });
+          return;
+        }
 
         const recipientOnline = onlineUsers.has(event.to);
         enqueueOrSend(event.to, event);
@@ -1077,6 +1086,7 @@ wss.on('connection', (ws) => {
 
       if (action === 'group-message') {
         if (!data.groupId || !isValidEncryptedPayload(data.payload)) {
+          console.error('Invalid group-message payload:', { groupId: data.groupId, ivLength: data.payload?.iv?.length, cipherLength: data.payload?.cipher?.length });
           safeSend(ws, { action: 'error', code: 'invalid-group-payload' });
           return;
         }
@@ -1093,12 +1103,14 @@ wss.on('connection', (ws) => {
         if (data.contentType === 'photo') {
           contentType = 'photo';
           maxCipherLength = MAX_PHOTO_CIPHER_LENGTH;
+          console.log('Receiving group photo message:', { cipherLength: data.payload.cipher.length, maxAllowed: maxCipherLength });
         } else if (data.contentType === 'document') {
           contentType = 'document';
           maxCipherLength = MAX_DOCUMENT_CIPHER_LENGTH;
         }
         
         if ((data.payload.cipher || '').length > maxCipherLength) {
+          console.error('Group photo too large during send:', { contentType, cipherLength: data.payload.cipher.length, maxAllowed: maxCipherLength });
           safeSend(ws, { action: 'error', code: 'message-too-large' });
           return;
         }
@@ -1121,16 +1133,22 @@ wss.on('connection', (ws) => {
         if (contentType === 'photo') messageKind = 'group-photo';
         else if (contentType === 'document') messageKind = 'group-document';
         
-        statements.insertMessage.run({
-          id: event.id,
-          kind: messageKind,
-          from_user: event.from,
-          to_user: null,
-          group_id: event.groupId,
-          payload: JSON.stringify({ encrypted: event.payload, expiresAt }),
-          mime_type: 'application/json',
-          created_at: event.createdAt
-        });
+        try {
+          statements.insertMessage.run({
+            id: event.id,
+            kind: messageKind,
+            from_user: event.from,
+            to_user: null,
+            group_id: event.groupId,
+            payload: JSON.stringify({ encrypted: event.payload, expiresAt }),
+            mime_type: 'application/json',
+            created_at: event.createdAt
+          });
+        } catch (err) {
+          console.error('Failed to insert group-message:', { error: err.message, id: event.id, kind: messageKind, groupId: event.groupId });
+          safeSend(ws, { action: 'error', code: 'server-processing-error' });
+          return;
+        }
 
         const members = groupMembers(event.groupId).filter((id) => id !== ws.userId);
         members.forEach((memberId) => enqueueOrSend(memberId, event));

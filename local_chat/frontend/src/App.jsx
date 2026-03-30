@@ -227,6 +227,8 @@ async function compressAvatarToDataUrl(file) {
 
 async function compressPhotoToDataUrl(file) {
   const source = await readFileAsDataUrl(file);
+  console.log('Original photo source length:', source.length);
+  
   const image = await loadImage(source);
 
   const maxDim = 1280;
@@ -238,17 +240,24 @@ async function compressPhotoToDataUrl(file) {
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
-  if (!ctx) return source;
+  if (!ctx) {
+    console.warn('Canvas 2D context not available, using original photo');
+    return source;
+  }
   ctx.drawImage(image, 0, 0, width, height);
 
-  const maxLength = 120000;
-  let quality = 0.82;
+  const maxLength = 150000;
+  let quality = 0.85;
   let out = canvas.toDataURL('image/jpeg', quality);
+  console.log('Initial compression (quality 0.85):', out.length);
+  
   while (out.length > maxLength && quality > 0.3) {
     quality -= 0.08;
     out = canvas.toDataURL('image/jpeg', quality);
+    console.log(`Recompressed (quality ${quality.toFixed(2)}):`, out.length);
   }
 
+  console.log('Final compressed photo length:', out.length, 'quality:', quality.toFixed(2));
   return out;
 }
 
@@ -1057,6 +1066,10 @@ export default function App() {
           }
           if (data.code === 'payload-too-large') {
             window.alert('Voice note payload was too large. Try a shorter recording.');
+          }
+          if (data.code === 'message-too-large' || data.code === 'invalid-direct-payload') {
+            window.alert('Message is too large to send. Please try a smaller photo or file.');
+            console.error('Message payload error:', data.code);
           }
           if (data.code === 'rate-limited' || data.code === 'server-processing-error') {
             setIsConnected(false);
@@ -2244,6 +2257,8 @@ export default function App() {
     event.target.value = '';
     if (!file || !active) return;
 
+    console.log('Photo selected:', { fileName: file.name, fileSize: file.size, fileType: file.type });
+
     if (!file.type.startsWith('image/')) {
       window.alert('Please choose an image file.');
       return;
@@ -2256,13 +2271,15 @@ export default function App() {
 
     try {
       const photoDataUrl = await compressPhotoToDataUrl(file);
-      if (!photoDataUrl || photoDataUrl.length > 120000) {
+      if (!photoDataUrl || photoDataUrl.length > 150000) {
+        console.error('Compressed photo too large:', photoDataUrl?.length);
         window.alert('Photo is still too large after compression. Please choose a smaller photo.');
         return;
       }
 
       await sendPhoto(photoDataUrl);
-    } catch {
+    } catch (err) {
+      console.error('Photo send error:', err);
       window.alert('Failed to send photo. Please try again.');
     }
   };
@@ -2272,7 +2289,10 @@ export default function App() {
 
     const id = randomId();
     const createdAt = Date.now();
+    console.log('Sending photo:', { photoDataUrlLength: photoDataUrl.length, active: active.id });
+    
     const encrypted = await encryptJson(aesSecret, { photo: photoDataUrl, sentAt: createdAt });
+    console.log('Photo encrypted:', { crypterIvLength: encrypted.iv.length, cipherLength: encrypted.cipher.length });
 
     if (active.type === 'direct') {
       wsRef.current?.send('direct-message', { id, to: active.id, payload: encrypted, contentType: 'photo', createdAt });
