@@ -21,7 +21,10 @@
   --composer-bg: #f0f2f5;
   --wa-mobile-header: #005e54;
   --wa-mobile-chat-bg: #efe7dd;
-  --wa-mobile-wallpaper: url("https://cloud.githubusercontent.com/assets/398893/15136779/4e765036-1639-11e6-9201-67e728e86f39.jpg");
+  --wa-mobile-wallpaper:
+    radial-gradient(circle at 12px 12px, rgba(255, 255, 255, 0.14) 1px, transparent 1px),
+    radial-gradient(circle at 36px 36px, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(180deg, #efe7dd 0%, #e8dfd2 100%);
 }
 
 [data-theme='dark'] {
@@ -70,7 +73,7 @@ input {
 
 body {
   margin: 0;
-  font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: 'Segoe UI', 'Segoe UI Variable', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   color: var(--dark-gray);
   background: linear-gradient(to bottom, var(--dark-green) 1px, var(--dark-green) 126px, var(--bg-lower-1) 127px, var(--bg-lower-2) 100%);
   min-height: 100vh;
@@ -194,6 +197,7 @@ body::before {
   margin: 0;
   font-size: 16px;
   font-weight: 500;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -201,7 +205,8 @@ body::before {
 
 .common-header-status {
   margin: 2px 0 0;
-  font-size: 13px;
+  font-size: 12.5px;
+  line-height: 1.25;
   opacity: 0.7;
 }
 
@@ -268,28 +273,28 @@ body::before {
 }
 
 .main-content .common-header .icon-search::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:magnify.svg');
-  mask-image: url('https://api.iconify.design/mdi:magnify.svg');
+  -webkit-mask-image: url('/icons/magnify.svg');
+  mask-image: url('/icons/magnify.svg');
 }
 
 .main-content .common-header .icon-phone::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:phone.svg');
-  mask-image: url('https://api.iconify.design/mdi:phone.svg');
+  -webkit-mask-image: url('/icons/phone.svg');
+  mask-image: url('/icons/phone.svg');
 }
 
 .main-content .common-header .icon-back::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:arrow-left.svg');
-  mask-image: url('https://api.iconify.design/mdi:arrow-left.svg');
+  -webkit-mask-image: url('/icons/arrow-left.svg');
+  mask-image: url('/icons/arrow-left.svg');
 }
 
 .main-content .common-header .icon-clock::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:timer-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:timer-outline.svg');
+  -webkit-mask-image: url('/icons/timer-outline.svg');
+  mask-image: url('/icons/timer-outline.svg');
 }
 
 .main-content .common-header .icon-trash::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:delete-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:delete-outline.svg');
+  -webkit-mask-image: url('/icons/delete-outline.svg');
+  mask-image: url('/icons/delete-outline.svg');
 }
 
 .main-content .common-header .icon-close::before,
@@ -298,11 +303,11 @@ body::before {
   box-shadow: none;
   width: 20px;
   height: 20px;
-  -webkit-mask-image: url('https://api.iconify.design/mdi:close.svg');
+  -webkit-mask-image: url('/icons/close.svg');
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-position: center;
   -webkit-mask-size: 20px 20px;
-  mask-image: url('https://api.iconify.design/mdi:close.svg');
+  mask-image: url('/icons/close.svg');
   mask-repeat: no-repeat;
   mask-position: center;
   mask-size: 20px 20px;
@@ -313,67 +318,67 @@ body::before {
   box-shadow: none;
   width: 20px;
   height: 20px;
-  -webkit-mask-image: url('https://api.iconify.design/mdi:dots-vertical.svg');
+  -webkit-mask-image: url('/icons/dots-vertical.svg');
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-position: center;
   -webkit-mask-size: 20px 20px;
-  mask-image: url('https://api.iconify.design/mdi:dots-vertical.svg');
+  mask-image: url('/icons/dots-vertical.svg');
   mask-repeat: no-repeat;
   mask-position: center;
   mask-size: 20px 20px;
 }
 
 .main-side .common-header .icon-status::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:theme-light-dark.svg');
-  mask-image: url('https://api.iconify.design/mdi:theme-light-dark.svg');
+  -webkit-mask-image: url('/icons/theme-light-dark.svg');
+  mask-image: url('/icons/theme-light-dark.svg');
 }
 
 .main-side .common-header .icon-new-chat::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:message-plus-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:message-plus-outline.svg');
+  -webkit-mask-image: url('/icons/message-plus-outline.svg');
+  mask-image: url('/icons/message-plus-outline.svg');
 }
 
 .main-side .common-header .icon-menu::before {
   background-color: currentColor;
   box-shadow: none;
-  -webkit-mask-image: url('https://api.iconify.design/mdi:dots-vertical.svg');
-  mask-image: url('https://api.iconify.design/mdi:dots-vertical.svg');
+  -webkit-mask-image: url('/icons/dots-vertical.svg');
+  mask-image: url('/icons/dots-vertical.svg');
 }
 
 .message-box .icon-emoji::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:emoticon-happy-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:emoticon-happy-outline.svg');
+  -webkit-mask-image: url('/icons/emoticon-happy-outline.svg');
+  mask-image: url('/icons/emoticon-happy-outline.svg');
 }
 
 .message-box .icon-mic::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:microphone-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:microphone-outline.svg');
+  -webkit-mask-image: url('/icons/microphone-outline.svg');
+  mask-image: url('/icons/microphone-outline.svg');
 }
 
 .message-box .icon-send::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:send.svg');
-  mask-image: url('https://api.iconify.design/mdi:send.svg');
+  -webkit-mask-image: url('/icons/send.svg');
+  mask-image: url('/icons/send.svg');
 }
 
 .message-box .icon-stop::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:stop.svg');
-  mask-image: url('https://api.iconify.design/mdi:stop.svg');
+  -webkit-mask-image: url('/icons/stop.svg');
+  mask-image: url('/icons/stop.svg');
 }
 
 .message-box .icon-attach::before,
 .icon-attach::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:attachment.svg');
-  mask-image: url('https://api.iconify.design/mdi:attachment.svg');
+  -webkit-mask-image: url('/icons/attachment.svg');
+  mask-image: url('/icons/attachment.svg');
 }
 
 .icon-gallery::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:image-multiple-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:image-multiple-outline.svg');
+  -webkit-mask-image: url('/icons/image-multiple-outline.svg');
+  mask-image: url('/icons/image-multiple-outline.svg');
 }
 
 .icon-camera::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:camera-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:camera-outline.svg');
+  -webkit-mask-image: url('/icons/camera-outline.svg');
+  mask-image: url('/icons/camera-outline.svg');
 }
 
 .common-button {
@@ -410,108 +415,108 @@ body::before {
 }
 
 .icon-search::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:magnify.svg');
-  mask-image: url('https://api.iconify.design/mdi:magnify.svg');
+  -webkit-mask-image: url('/icons/magnify.svg');
+  mask-image: url('/icons/magnify.svg');
 }
 
 .icon-phone::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:phone.svg');
-  mask-image: url('https://api.iconify.design/mdi:phone.svg');
+  -webkit-mask-image: url('/icons/phone.svg');
+  mask-image: url('/icons/phone.svg');
 }
 
 .icon-phone-active::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:phone-in-talk.svg');
-  mask-image: url('https://api.iconify.design/mdi:phone-in-talk.svg');
+  -webkit-mask-image: url('/icons/phone-in-talk.svg');
+  mask-image: url('/icons/phone-in-talk.svg');
 }
 
 .icon-trash::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:delete-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:delete-outline.svg');
+  -webkit-mask-image: url('/icons/delete-outline.svg');
+  mask-image: url('/icons/delete-outline.svg');
 }
 
 .icon-emoji::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:emoticon-happy-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:emoticon-happy-outline.svg');
+  -webkit-mask-image: url('/icons/emoticon-happy-outline.svg');
+  mask-image: url('/icons/emoticon-happy-outline.svg');
 }
 
 .icon-mic::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:microphone-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:microphone-outline.svg');
+  -webkit-mask-image: url('/icons/microphone-outline.svg');
+  mask-image: url('/icons/microphone-outline.svg');
 }
 
 .icon-send::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:send.svg');
-  mask-image: url('https://api.iconify.design/mdi:send.svg');
+  -webkit-mask-image: url('/icons/send.svg');
+  mask-image: url('/icons/send.svg');
 }
 
 .icon-new-chat::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:message-plus-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:message-plus-outline.svg');
+  -webkit-mask-image: url('/icons/message-plus-outline.svg');
+  mask-image: url('/icons/message-plus-outline.svg');
 }
 
 .icon-status::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:theme-light-dark.svg');
-  mask-image: url('https://api.iconify.design/mdi:theme-light-dark.svg');
+  -webkit-mask-image: url('/icons/theme-light-dark.svg');
+  mask-image: url('/icons/theme-light-dark.svg');
 }
 
 .icon-pin::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:pin-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:pin-outline.svg');
+  -webkit-mask-image: url('/icons/pin-outline.svg');
+  mask-image: url('/icons/pin-outline.svg');
 }
 
 .icon-clock::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:timer-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:timer-outline.svg');
+  -webkit-mask-image: url('/icons/timer-outline.svg');
+  mask-image: url('/icons/timer-outline.svg');
 }
 
 .icon-menu::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:dots-vertical.svg');
-  mask-image: url('https://api.iconify.design/mdi:dots-vertical.svg');
+  -webkit-mask-image: url('/icons/dots-vertical.svg');
+  mask-image: url('/icons/dots-vertical.svg');
 }
 
 .icon-silent::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:bell-off-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:bell-off-outline.svg');
+  -webkit-mask-image: url('/icons/bell-off-outline.svg');
+  mask-image: url('/icons/bell-off-outline.svg');
 }
 
 .icon-forward-msg::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:reply-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:reply-outline.svg');
+  -webkit-mask-image: url('/icons/reply-outline.svg');
+  mask-image: url('/icons/reply-outline.svg');
 }
 
 .icon-edit-msg::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:pencil-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:pencil-outline.svg');
+  -webkit-mask-image: url('/icons/pencil-outline.svg');
+  mask-image: url('/icons/pencil-outline.svg');
 }
 
 .icon-pin-msg::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:pin-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:pin-outline.svg');
+  -webkit-mask-image: url('/icons/pin-outline.svg');
+  mask-image: url('/icons/pin-outline.svg');
 }
 
 .icon-pin-fill-msg::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:pin.svg');
-  mask-image: url('https://api.iconify.design/mdi:pin.svg');
+  -webkit-mask-image: url('/icons/pin.svg');
+  mask-image: url('/icons/pin.svg');
 }
 
 .icon-delete-msg::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:delete-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:delete-outline.svg');
+  -webkit-mask-image: url('/icons/delete-outline.svg');
+  mask-image: url('/icons/delete-outline.svg');
 }
 
 .icon-delete-all-msg::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:delete-forever-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:delete-forever-outline.svg');
+  -webkit-mask-image: url('/icons/delete-forever-outline.svg');
+  mask-image: url('/icons/delete-forever-outline.svg');
 }
 
 .icon-walkie-idle::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:microphone-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:microphone-outline.svg');
+  -webkit-mask-image: url('/icons/microphone-outline.svg');
+  mask-image: url('/icons/microphone-outline.svg');
 }
 
 .icon-walkie-live::before {
-  -webkit-mask-image: url('https://api.iconify.design/mdi:record-circle-outline.svg');
-  mask-image: url('https://api.iconify.design/mdi:record-circle-outline.svg');
+  -webkit-mask-image: url('/icons/record-circle-outline.svg');
+  mask-image: url('/icons/record-circle-outline.svg');
 }
 
 .is-active-control {
@@ -600,7 +605,7 @@ body::before {
   display: grid;
   grid-template-columns: 50px 1fr;
   grid-column-gap: 15px;
-  padding: 7px 15px;
+  padding: 8px 15px;
   grid-template-areas:
     'image header'
     'image content';
@@ -638,11 +643,11 @@ body::before {
   height: 14px;
   display: block;
   background-color: currentColor;
-  -webkit-mask-image: url('https://api.iconify.design/mdi:chevron-down.svg');
+  -webkit-mask-image: url('/icons/chevron-down.svg');
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-position: center;
   -webkit-mask-size: 14px 14px;
-  mask-image: url('https://api.iconify.design/mdi:chevron-down.svg');
+  mask-image: url('/icons/chevron-down.svg');
   mask-repeat: no-repeat;
   mask-position: center;
   mask-size: 14px 14px;
@@ -686,12 +691,13 @@ body::before {
 
 .chats-item-title {
   margin: 0;
-  font-size: 15px;
+  font-size: 15.6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
-  font-weight: 600;
+  line-height: 1.28;
+  font-weight: 500;
 }
 
 .chats-item-time {
@@ -709,7 +715,8 @@ body::before {
 
 .chats-item-last {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 12.9px;
+  line-height: 1.32;
   opacity: 0.7;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -755,7 +762,7 @@ body::before {
 .messanger-list {
   display: flex;
   flex-direction: column;
-  padding: 18px 6.6%;
+  padding: 16px 6.2% 14px;
   margin: 0;
   list-style: none;
 }
@@ -764,9 +771,9 @@ body::before {
   position: relative;
   max-width: min(560px, 86%);
   width: fit-content;
-  margin-bottom: 8px;
-  padding: 6px 8px 8px;
-  border-radius: 8px;
+  margin-bottom: 2px;
+  padding: 6px 9px 7px;
+  border-radius: 0 8px 8px 8px;
   background: var(--other-msg);
   box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
 }
@@ -774,25 +781,27 @@ body::before {
 .common-message::before {
   content: '';
   position: absolute;
-  left: -10px;
+  left: -6px;
   top: 0;
-  border: solid;
-  border-width: 0 16px 16px 0;
-  border-color: transparent;
-  border-right-color: var(--other-msg);
+  width: 10px;
+  height: 12px;
+  background: var(--other-msg);
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
 }
 
 .common-message.is-you {
   align-self: flex-end;
   background: var(--user-msg);
+  border-radius: 8px 0 8px 8px;
 }
 
 .common-message.is-you::before {
   left: auto;
-  right: -28px;
-  border-width: 0 16px 16px 16px;
-  border-color: transparent;
-  border-left-color: var(--user-msg);
+  right: -6px;
+  width: 10px;
+  height: 12px;
+  background: var(--user-msg);
+  clip-path: polygon(0 0, 0 100%, 100% 0);
 }
 
 .common-message.is-time {
@@ -810,8 +819,8 @@ body::before {
 .common-message-content {
   margin: 0;
   white-space: pre-wrap;
-  font-size: 14.2px;
-  line-height: 1.35;
+  font-size: 14px;
+  line-height: 1.42;
 }
 
 .message-photo {
@@ -826,8 +835,9 @@ body::before {
 
 .common-message time {
   float: right;
-  margin-top: 6px;
-  font-size: 11.2px;
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1;
   opacity: 0.6;
 }
 
@@ -2087,32 +2097,52 @@ button.auth-pin-display {
   }
 
   .common-header {
+    position: sticky;
+    top: 0;
+    z-index: 8;
     background: var(--wa-mobile-header);
     color: #fff;
-    height: calc(55px + env(safe-area-inset-top));
-    padding: env(safe-area-inset-top) 8px 0;
+    height: calc(56px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 10px 0;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
   .main-side .common-header {
     background: var(--wa-mobile-header);
     color: #fff;
+    z-index: 9;
   }
 
   .main-content .common-header {
     background: var(--wa-mobile-header);
     color: #fff;
+    z-index: 9;
+    padding-right: 6px;
+  }
+
+  .common-header .common-nav-item .common-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .main-content .common-header .icon,
+  .main-side .common-header .icon {
+    width: 22px;
+    height: 22px;
   }
 
   .main-content .common-header .common-header-title {
-    font-size: 17px;
+    font-size: 16px;
     font-weight: 600;
-    letter-spacing: 0.3px;
+    letter-spacing: 0;
+    line-height: 1.2;
   }
 
   .main-content .common-header .common-header-status {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 400;
-    opacity: 0.95;
+    line-height: 1.15;
+    opacity: 0.92;
   }
 
   .main-content .icon-menu::before,
@@ -2182,8 +2212,8 @@ button.auth-pin-display {
   }
 
   .messanger-list {
-    padding: 6px 12px 18px;
-    padding-bottom: 24px;
+    padding: 8px 10px 20px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
   }
 
   .common-search {
@@ -2229,41 +2259,45 @@ button.auth-pin-display {
   }
 
   .common-message {
-    max-width: 85%;
-    margin: 8px 0;
-    line-height: 18px;
-    font-size: 15px;
-    padding: 8px;
+    max-width: 82%;
+    margin: 2px 0;
+    line-height: 1.36;
+    font-size: 14.6px;
+    padding: 6px 8px 7px;
   }
 
   .common-message:first-child {
-    margin-top: 16px;
+    margin-top: 12px;
   }
 
   .common-message.received,
   .common-message.is-other {
-    border-radius: 0 5px 5px 5px;
+    border-radius: 0 7px 7px 7px;
   }
 
   .common-message.received::before,
   .common-message.is-other::before {
-    left: -10px;
+    left: -6px;
     right: auto;
-    border-width: 0 10px 10px 0;
-    border-color: transparent var(--other-msg) transparent transparent;
+    width: 9px;
+    height: 12px;
+    background: var(--other-msg);
+    clip-path: polygon(100% 0, 0 0, 100% 100%);
   }
 
   .common-message.sent,
   .common-message.is-you {
-    border-radius: 5px 0 5px 5px;
+    border-radius: 7px 0 7px 7px;
   }
 
   .common-message.sent::before,
   .common-message.is-you::before {
-    right: -10px;
+    right: -6px;
     left: auto;
-    border-width: 0 0 10px 10px;
-    border-color: transparent transparent transparent var(--user-msg);
+    width: 9px;
+    height: 12px;
+    background: var(--user-msg);
+    clip-path: polygon(0 0, 0 100%, 100% 0);
   }
 
   .messanger {
