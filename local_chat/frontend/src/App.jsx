@@ -356,7 +356,8 @@ export default function App() {
       type: 'group',
       id: g.id,
       label: g.name,
-      online: true
+      online: true,
+      isGroupAdmin: Boolean(g.created_by === profile.userId || g.role === 'admin')
     }));
 
     const q = search.trim().toLowerCase();
@@ -2546,7 +2547,7 @@ export default function App() {
                 const unread = unreadCounts[conversationId] || 0;
 
                 return (
-                  <li className="chats-item" key={`online:${u.id}`}>
+                  <li className="chats-item chats-item-row-online" key={`online:${u.id}`}>
                     <button className={`chats-item-button js-chat-button ${isActive ? 'is-active' : ''}`} onClick={() => openChat(chat)}>
                       <Avatar name={chat.label} avatar={u.avatar} />
                       <header className="chats-item-header">
@@ -2570,7 +2571,7 @@ export default function App() {
                 const unread = unreadCounts[conversationId] || 0;
 
                 return (
-                  <li className="chats-item" key={`offline:${u.id}`}>
+                  <li className="chats-item chats-item-row-offline" key={`offline:${u.id}`}>
                     <button className={`chats-item-button js-chat-button ${isActive ? 'is-active' : ''}`} onClick={() => openChat(chat)}>
                       <Avatar name={chat.label} avatar={u.avatar} />
                       <header className="chats-item-header">
@@ -2603,7 +2604,7 @@ export default function App() {
                 const isMutedConversation = Boolean(mutedConversations[conversationId]);
                 const isArchivedConversation = Boolean(archivedConversations[conversationId]);
                 return (
-                  <li className="chats-item" key={`${chat.type}:${chat.id}`}>
+                  <li className="chats-item chats-item-row-system" key={`${chat.type}:${chat.id}`}>
                     <div className="chats-item-row">
                       <button className={`chats-item-button js-chat-button ${isActive ? 'is-active' : ''}`} onClick={() => openChat(chat)}>
                         <Avatar name={chat.label} avatar={chatAvatar} />
@@ -2612,7 +2613,11 @@ export default function App() {
                           <time className="chats-item-time">{fmtTime(Date.now())}</time>
                         </header>
                         <div className="chats-item-content">
-                          <p className="chats-item-last">{chat.type === 'group' ? 'Group chat' : chat.online ? 'Online now' : 'Offline'}</p>
+                          <p className="chats-item-last">
+                            {chat.type === 'group' && <span className="chat-meta-icon chat-meta-icon-group" aria-label="group chat" />}
+                            {chat.type === 'group' && chat.isGroupAdmin && <span className="chat-meta-icon chat-meta-icon-admin" aria-label="group admin" />}
+                            <span className="chats-item-last-text">{chat.type === 'group' ? 'Group chat' : chat.online ? 'Online now' : 'Offline'}</span>
+                          </p>
                           <ul className="chats-item-info">
                             {(isMutedConversation || !chat.online) && <li className="chats-item-info-item"><span className="icon icon-silent" aria-label="muted" /></li>}
                             {unread > 0 && <li className="chats-item-info-item"><span className="unread-messsages">{unread > 99 ? '99+' : unread}</span></li>}
@@ -2645,7 +2650,7 @@ export default function App() {
           </section>
         </aside>
 
-        <main className="main-content">
+        <main className={`main-content ${!active ? 'is-empty-chat' : ''}`}>
           <header className="common-header">
             <div className="common-header-start">
               <button className="common-button is-only-mobile u-margin-end js-back" onClick={() => setIsMessageOpen(false)}><span className="icon icon-back" aria-label="back" /></button>
@@ -2698,6 +2703,15 @@ export default function App() {
               </ul>
             </nav>
           </header>
+
+          {!active && (
+            <section className="chat-empty-cover" aria-live="polite">
+              <div className="chat-empty-card">
+                <h3 className="chat-empty-title">Choose a chat</h3>
+                <p className="chat-empty-copy">Select a conversation from the chat list to start messaging.</p>
+              </div>
+            </section>
+          )}
 
           {chatSearchQuery && (
             <div className="chat-inline-search">
