@@ -81,6 +81,74 @@ function fmtDuration(ms) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+function fmtFileSize(bytes) {
+  const size = Number(bytes || 0);
+  if (!size || size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getBahrainTileMarker(lat, lng) {
+  const south = 25.95;
+  const north = 26.35;
+  const west = 50.35;
+  const east = 50.8;
+
+  const latNum = Number(lat);
+  const lngNum = Number(lng);
+  if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+    return { x: 50, y: 50 };
+  }
+
+  const x = clamp(((lngNum - west) / (east - west)) * 100, 5, 95);
+  const y = clamp(((north - latNum) / (north - south)) * 100, 5, 95);
+  return { x, y };
+}
+
+function applyPollVoteSnapshot(shareData, voterId, optionIndex) {
+  if (!shareData || !Array.isArray(shareData.options)) return shareData;
+
+  const next = {
+    ...shareData,
+    votesByUser: { ...(shareData.votesByUser || {}) },
+    voteCounts: Array.isArray(shareData.voteCounts)
+      ? [...shareData.voteCounts]
+      : Array.from({ length: shareData.options.length }, () => 0)
+  };
+
+  while (next.voteCounts.length < shareData.options.length) {
+    next.voteCounts.push(0);
+  }
+
+  const normalizedOption = Number(optionIndex);
+  if (!Number.isInteger(normalizedOption) || normalizedOption < 0 || normalizedOption >= shareData.options.length) {
+    return next;
+  }
+
+  const prevOption = next.votesByUser[voterId];
+  if (Number.isInteger(prevOption) && prevOption >= 0 && prevOption < next.voteCounts.length) {
+    next.voteCounts[prevOption] = Math.max(0, Number(next.voteCounts[prevOption] || 0) - 1);
+  }
+
+  next.votesByUser[voterId] = normalizedOption;
+  next.voteCounts[normalizedOption] = Number(next.voteCounts[normalizedOption] || 0) + 1;
+  next.totalVotes = next.voteCounts.reduce((sum, count) => sum + Number(count || 0), 0);
+
+  return next;
+}
+
+const BAHRAIN_OFFLINE_LOCATIONS = [
+  { name: 'Manama City Center', lat: 26.2285, lng: 50.586 },
+  { name: 'Bahrain Fort', lat: 26.2333, lng: 50.5208 },
+  { name: 'Muharraq Souq', lat: 26.2574, lng: 50.6119 },
+  { name: 'Sakhir (BIC Area)', lat: 26.0325, lng: 50.5106 },
+  { name: 'Isa Town', lat: 26.1732, lng: 50.5478 },
+];
+
 function initials(name) {
   return (name || '?')
     .split(' ')
@@ -258,6 +326,18 @@ export default function App() {
   const [onboardingPinConfirm, setOnboardingPinConfirm] = useState('');
   const [signupPinField, setSignupPinField] = useState('create');
 
+  // Share dialogs states
+  const [pollDialogOpen, setPollDialogOpen] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState('Yes,No');
+  const [eventDialogOpen, setEventDialogOpen] = useState(false);
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventDateTime, setEventDateTime] = useState('');
+  const [eventLocation, setEventLocation] = useState('');
+  const [eventNote, setEventNote] = useState('');
+  const [bahrainLocationDialogOpen, setBahrainLocationDialogOpen] = useState(false);
+  const [bahrainLocationSelected, setBahrainLocationSelected] = useState('');
+
   // Message action states
   const [messageEditingId, setMessageEditingId] = useState(null);
   const [messageEditText, setMessageEditText] = useState('');
@@ -306,6 +386,7 @@ export default function App() {
   const emojiPickerRef = useRef(null);
   const photoInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+  const documentInputRef = useRef(null);
   const attachmentMenuRef = useRef(null);
   const recordingStreamRef = useRef(null);
   const recordingChunksRef = useRef([]);
@@ -313,6 +394,7 @@ export default function App() {
   const analyserRef = useRef(null);
   const audioContextRef = useRef(null);
   const waveformPaintAtRef = useRef(0);
+  const reminderTimersRef = useRef(new Map());
 
   const activeConversationKey = convKey(active, profile.userId);
   const visibleUsers = useMemo(() => users.filter((u) => u.id !== profile.userId), [users, profile.userId]);
@@ -703,6 +785,21 @@ export default function App() {
     }
   };
 
+  const applyPollVoteUpdate = async ({ conversationId, pollMessageId, voterId, optionIndex }) => {
+    const pollMessage = await loadMessageById(pollMessageId);
+    if (!pollMessage || pollMessage.type !== 'share' || pollMessage.shareType !== 'poll') {
+      return;
+    }
+
+    const nextShareData = applyPollVoteSnapshot(pollMessage.shareData, voterId, optionIndex);
+    const updatedPollMessage = { ...pollMessage, shareData: nextShareData };
+    await saveMessage(updatedPollMessage);
+
+    if (conversationId === activeConversationRef.current) {
+      setMessages((prev) => prev.map((m) => (m.id === pollMessageId ? { ...m, shareData: nextShareData } : m)));
+    }
+  };
+
   const sendHello = (profilePayload, { profileUpdate = false, authMode: mode = 'login' } = {}) => {
     wsRef.current?.send('hello', {
       ...profilePayload,
@@ -715,6 +812,8 @@ export default function App() {
   const openNewUserSetup = () => {
     setAuthMode('signup');
     authModeRef.current = 'new';
+    setOnboardingName('');
+    setOnboardingAbout('');
     setOnboardingPin('');
     setOnboardingPinConfirm('');
     setSignupPinField('create');
@@ -723,8 +822,8 @@ export default function App() {
 
   const submitOldUserLogin = async () => {
     const cleanedPin = loginPin.trim();
-    if (!/^(\d{4}|\d{6})$/.test(cleanedPin)) {
-      window.alert('Enter a valid 4-digit or 6-digit PIN.');
+    if (!/^\d{6}$/.test(cleanedPin)) {
+      window.alert('Enter a valid 6-digit PIN.');
       return;
     }
 
@@ -905,7 +1004,7 @@ export default function App() {
       onMessage: async (data) => {
         if (data.action === 'error') {
           if (data.code === 'invalid-pin') {
-            window.alert('Invalid PIN. Please use 4 digits or 6 digits.');
+            window.alert('Invalid PIN. Please use exactly 6 digits.');
             if (authScreenOpen) {
               authReadyRef.current = false;
               setAuthScreenOpen(true);
@@ -973,11 +1072,12 @@ export default function App() {
           setAuthScreenOpen(false);
           setUsers(data.users || []);
           setGroups(data.groups || []);
+          const serverProfile = data.profile || {};
           const nextProfile = {
-            userId: data.profile?.userId ?? data.userId ?? profileRef.current.userId,
-            username: data.profile?.username ?? profileRef.current.username,
-            avatar: data.profile?.avatar ?? profileRef.current.avatar ?? '',
-            about: data.profile?.about ?? profileRef.current.about ?? 'Hey there! I am using LAN Messenger.'
+            userId: serverProfile.userId ?? data.userId ?? profileRef.current.userId,
+            username: (serverProfile.username || 'Anonymous').slice(0, 30),
+            avatar: typeof serverProfile.avatar === 'string' ? serverProfile.avatar : '',
+            about: (serverProfile.about || 'Hey there! I am using LAN Messenger.').slice(0, 120)
           };
           setProfile(nextProfile);
           setOnboardingName(nextProfile.username);
@@ -1083,20 +1183,35 @@ export default function App() {
           }
 
           const isPhoto = plain.photo && typeof plain.photo === 'string';
+          const isShare = typeof plain.shareType === 'string' && plain.share;
+
+          if (isShare && plain.shareType === 'poll-vote') {
+            await applyPollVoteUpdate({
+              conversationId,
+              pollMessageId: plain.share.pollMessageId,
+              voterId: data.from,
+              optionIndex: plain.share.optionIndex
+            });
+            return;
+          }
+
           const messageData = {
             id: data.id,
             conversationId,
             from: data.from,
             to: data.to || null,
             groupId: data.groupId || null,
-            type: isPhoto ? 'photo' : 'text',
+            type: isShare ? 'share' : (isPhoto ? 'photo' : 'text'),
             createdAt: data.createdAt,
             mine: data.from === profileRef.current.userId,
             status: 'delivered',
             expiresAt: data.expiresAt || null
           };
 
-          if (isPhoto) {
+          if (isShare) {
+            messageData.shareType = plain.shareType;
+            messageData.shareData = plain.share;
+          } else if (isPhoto) {
             messageData.photoUrl = plain.photo;
           } else {
             messageData.text = plain.text;
@@ -1135,6 +1250,8 @@ export default function App() {
             let photoUrl = null;
             let expiresAt = null;
             let messageType = 'text';
+            let shareType = '';
+            let shareData = null;
             try {
               const parsed = JSON.parse(row.payload);
               let encryptedPayload = parsed;
@@ -1148,6 +1265,10 @@ export default function App() {
                 if (plain.photo && typeof plain.photo === 'string') {
                   photoUrl = plain.photo;
                   messageType = 'photo';
+                } else if (typeof plain.shareType === 'string' && plain.share) {
+                  shareType = plain.shareType;
+                  shareData = plain.share;
+                  messageType = 'share';
                 } else {
                   decryptedText = plain.text;
                 }
@@ -1182,6 +1303,17 @@ export default function App() {
 
             if (row.kind === 'voice-note') {
               messageData.text = '[Voice note: available on receiving device only]';
+            } else if (messageType === 'share' && shareType === 'poll-vote') {
+              await applyPollVoteUpdate({
+                conversationId,
+                pollMessageId: shareData?.pollMessageId,
+                voterId: row.from_user,
+                optionIndex: shareData?.optionIndex
+              });
+              continue;
+            } else if (messageType === 'share') {
+              messageData.shareType = shareType;
+              messageData.shareData = shareData;
             } else if (messageType === 'photo') {
               messageData.photoUrl = photoUrl;
             } else {
@@ -1476,6 +1608,8 @@ export default function App() {
     wsRef.current = ws;
 
     return () => {
+      reminderTimersRef.current.forEach((timerId) => clearTimeout(timerId));
+      reminderTimersRef.current.clear();
       ws.close();
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop();
@@ -2167,6 +2301,235 @@ export default function App() {
     sendTyping(false);
   };
 
+  const sendSharePayload = async (shareType, share, { appendLocal = true } = {}) => {
+    if (!active || !shareType || !share) return;
+
+    const id = randomId();
+    const createdAt = Date.now();
+    const encrypted = await encryptJson(aesSecret, { shareType, share, sentAt: createdAt });
+
+    if (active.type === 'direct') {
+      wsRef.current?.send('direct-message', { id, to: active.id, payload: encrypted, contentType: shareType, createdAt });
+    } else {
+      wsRef.current?.send('group-message', { id, groupId: active.id, payload: encrypted, contentType: shareType, createdAt });
+    }
+
+    if (appendLocal) {
+      const localExpiresAt = activeTempSetting ? Date.now() + activeTempSetting.durationMs : null;
+      markConversationRecent(activeConversationKey);
+
+      await appendMessage({
+        id,
+        conversationId: activeConversationKey,
+        from: profile.userId,
+        to: active.type === 'direct' ? active.id : null,
+        groupId: active.type === 'group' ? active.id : null,
+        type: 'share',
+        shareType,
+        shareData: share,
+        createdAt,
+        mine: true,
+        status: 'sending',
+        expiresAt: localExpiresAt
+      });
+    }
+
+    setAttachmentMenuOpen(false);
+  };
+
+  const votePollOption = async (pollMessage, optionIndex) => {
+    if (!active || !pollMessage?.id) return;
+
+    const nextShareData = applyPollVoteSnapshot(pollMessage.shareData, profile.userId, optionIndex);
+    const updatedPollMessage = { ...pollMessage, shareData: nextShareData };
+
+    await saveMessage(updatedPollMessage);
+    setMessages((prev) => prev.map((m) => (m.id === pollMessage.id ? { ...m, shareData: nextShareData } : m)));
+
+    await sendSharePayload(
+      'poll-vote',
+      {
+        pollMessageId: pollMessage.id,
+        optionIndex: Number(optionIndex)
+      },
+      { appendLocal: false }
+    );
+  };
+
+  const addEventReminder = async (message) => {
+    if (!message?.shareData) return;
+
+    const whenTs = Number(message.shareData.whenTs || 0);
+    const eventTs = Number.isFinite(whenTs) && whenTs > 0
+      ? whenTs
+      : new Date(message.shareData.whenRaw || '').getTime();
+
+    if (!Number.isFinite(eventTs) || eventTs <= Date.now()) {
+      window.alert('Event time is in the past or invalid.');
+      return;
+    }
+
+    const leadRaw = window.prompt('Reminder minutes before event:', '10');
+    if (!leadRaw) return;
+    const leadMinutes = Number(leadRaw);
+    if (!Number.isFinite(leadMinutes) || leadMinutes < 0) {
+      window.alert('Please enter a valid number of minutes.');
+      return;
+    }
+
+    const triggerAt = eventTs - leadMinutes * 60 * 1000;
+    const delayMs = Math.max(0, triggerAt - Date.now());
+
+    const oldTimer = reminderTimersRef.current.get(message.id);
+    if (oldTimer) {
+      clearTimeout(oldTimer);
+    }
+
+    const notify = async () => {
+      const title = message.shareData.title || 'Event reminder';
+      const body = `${message.shareData.location || 'Location'} at ${message.shareData.whenRaw || new Date(eventTs).toLocaleString()}`;
+
+      if ('Notification' in window) {
+        let permission = Notification.permission;
+        if (permission === 'default') {
+          permission = await Notification.requestPermission();
+        }
+
+        if (permission === 'granted') {
+          new Notification(`Reminder: ${title}`, { body });
+          return;
+        }
+      }
+
+      window.alert(`Reminder: ${title}\n${body}`);
+    };
+
+    const timerId = setTimeout(() => {
+      void notify();
+      reminderTimersRef.current.delete(message.id);
+    }, delayMs);
+
+    reminderTimersRef.current.set(message.id, timerId);
+    window.alert(`Reminder set for ${leadMinutes} minute(s) before event.`);
+  };
+
+  const openBahrainLocationDialog = () => {
+    setBahrainLocationDialogOpen(true);
+    setBahrainLocationSelected('');
+  };
+
+  const submitBahrainLocation = async () => {
+    if (!bahrainLocationSelected) {
+      window.alert('Please select a location.');
+      return;
+    }
+    const index = Number(bahrainLocationSelected) - 1;
+    const selected = BAHRAIN_OFFLINE_LOCATIONS[index];
+    if (!selected) {
+      window.alert('Invalid location choice.');
+      return;
+    }
+
+    await sendSharePayload('location', {
+      mapName: 'Bahrain Offline Map',
+      label: selected.name,
+      lat: selected.lat,
+      lng: selected.lng
+    });
+    setBahrainLocationDialogOpen(false);
+    setAttachmentMenuOpen(false);
+  };
+
+  const triggerDocumentUpload = () => {
+    documentInputRef.current?.click();
+    setAttachmentMenuOpen(false);
+  };
+
+  const onDocumentSelected = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !active) return;
+
+    if (file.size > 350 * 1024) {
+      window.alert('Document must be 350KB or less for offline encrypted sharing.');
+      return;
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      await sendSharePayload('document', {
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        size: file.size,
+        dataUrl
+      });
+    } catch {
+      window.alert('Failed to share document.');
+    }
+  };
+
+  const openPollDialog = () => {
+    setPollDialogOpen(true);
+    setPollQuestion('');
+    setPollOptions('Yes,No');
+  };
+
+  const submitPoll = async () => {
+    if (!pollQuestion.trim()) {
+      window.alert('Poll question is required.');
+      return;
+    }
+    const options = pollOptions.split(',').map((opt) => opt.trim()).filter(Boolean);
+    if (options.length < 2) {
+      window.alert('Poll needs at least 2 options.');
+      return;
+    }
+
+    await sendSharePayload('poll', {
+      question: pollQuestion.trim(),
+      options: options.slice(0, 8),
+      voteCounts: Array.from({ length: Math.min(options.length, 8) }, () => 0),
+      votesByUser: {},
+      totalVotes: 0
+    });
+    setPollDialogOpen(false);
+    setAttachmentMenuOpen(false);
+  };
+
+  const openEventDialog = () => {
+    setEventDialogOpen(true);
+    setEventTitle('');
+    setEventDateTime('');
+    setEventLocation('');
+    setEventNote('');
+  };
+
+  const submitEvent = async () => {
+    if (!eventTitle.trim()) {
+      window.alert('Event title is required.');
+      return;
+    }
+    if (!eventDateTime.trim()) {
+      window.alert('Event date/time is required.');
+      return;
+    }
+    if (!eventLocation.trim()) {
+      window.alert('Event location is required.');
+      return;
+    }
+    const parsed = new Date(eventDateTime);
+
+    await sendSharePayload('event', {
+      title: eventTitle.trim(),
+      whenRaw: eventDateTime.trim(),
+      whenTs: Number.isNaN(parsed.getTime()) ? null : parsed.getTime(),
+      location: eventLocation.trim(),
+      note: eventNote.trim()
+    });
+    setEventDialogOpen(false);
+    setAttachmentMenuOpen(false);
+  };
+
   const saveAbout = () => {
     const cleaned = aboutDraft.trim().slice(0, 120) || 'Hey there! I am using LAN Messenger.';
     const nextProfile = { ...profileRef.current, about: cleaned };
@@ -2189,8 +2552,8 @@ export default function App() {
   const saveProfilePin = async () => {
     const cleanedPin = newPinDraft.trim();
     const cleanedConfirm = newPinConfirmDraft.trim();
-    if (!/^(\d{4}|\d{6})$/.test(cleanedPin) || !/^(\d{4}|\d{6})$/.test(cleanedConfirm)) {
-      window.alert('PIN must be 4 digits or 6 digits.');
+    if (!/^\d{6}$/.test(cleanedPin) || !/^\d{6}$/.test(cleanedConfirm)) {
+      window.alert('PIN must be exactly 6 digits.');
       return;
     }
     if (cleanedPin !== cleanedConfirm) {
@@ -2298,16 +2661,14 @@ export default function App() {
     }
 
     setShowPinnedMessages(false);
-    setTimeout(() => {
-      const msgElement = document.getElementById(`msg-${messageId}`);
-      if (msgElement) {
-        msgElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        msgElement.style.backgroundColor = 'rgba(255, 193, 7, 0.3)';
-        setTimeout(() => {
-          msgElement.style.backgroundColor = '';
-        }, 2000);
-      }
-    }, 100);
+    const msgElement = document.getElementById(`msg-${messageId}`);
+    if (msgElement) {
+      msgElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      msgElement.style.backgroundColor = 'rgba(255, 193, 7, 0.3)';
+      setTimeout(() => {
+        msgElement.style.backgroundColor = '';
+      }, 2000);
+    }
   };
 
   const startCallRecording = () => {
@@ -2358,8 +2719,8 @@ export default function App() {
     const cleanedAbout = onboardingAbout.trim().slice(0, 120) || 'Hey there! I am using LAN Messenger.';
     const cleanedPin = onboardingPin.trim();
     const cleanedConfirmPin = onboardingPinConfirm.trim();
-    if (!cleanedName || !/^(\d{4}|\d{6})$/.test(cleanedPin) || !/^(\d{4}|\d{6})$/.test(cleanedConfirmPin)) {
-      window.alert('Username is required and PIN must be 4 digits or 6 digits.');
+    if (!cleanedName || !/^\d{6}$/.test(cleanedPin) || !/^\d{6}$/.test(cleanedConfirmPin)) {
+      window.alert('Username is required and PIN must be exactly 6 digits.');
       return;
     }
     if (cleanedPin !== cleanedConfirmPin) {
@@ -2802,6 +3163,67 @@ export default function App() {
                     <p className="common-message-content">{m.text} {m.editedAt ? <small>(edited)</small> : null}</p>
                   ) : m.type === 'photo' ? (
                     <div className="common-message-content"><img src={m.photoUrl} alt="Sent photo" className="message-photo" /></div>
+                  ) : m.type === 'share' ? (
+                    <div className="common-message-content share-card">
+                      {m.shareType === 'location' && (
+                        <>
+                          <p className="share-title">Location</p>
+                          <p className="share-line">{m.shareData?.label || 'Bahrain location'}</p>
+                          <p className="share-meta">{m.shareData?.mapName || 'Offline map'} · {Number(m.shareData?.lat || 0).toFixed(4)}, {Number(m.shareData?.lng || 0).toFixed(4)}</p>
+                          <div className="location-mini-map" aria-label="offline map preview">
+                            {(() => {
+                              const marker = getBahrainTileMarker(m.shareData?.lat, m.shareData?.lng);
+                              return <span className="location-mini-marker" style={{ left: `${marker.x}%`, top: `${marker.y}%` }} />;
+                            })()}
+                          </div>
+                        </>
+                      )}
+                      {m.shareType === 'document' && (
+                        <>
+                          <p className="share-title">Document</p>
+                          <p className="share-line">{m.shareData?.name || 'Shared file'}</p>
+                          <p className="share-meta">{m.shareData?.mimeType || 'file'} · {fmtFileSize(m.shareData?.size)}</p>
+                          {m.shareData?.dataUrl && <a className="share-link" href={m.shareData.dataUrl} download={m.shareData?.name || 'document'}>Download</a>}
+                        </>
+                      )}
+                      {m.shareType === 'poll' && (
+                        <>
+                          <p className="share-title">Poll</p>
+                          <p className="share-line">{m.shareData?.question || 'Question'}</p>
+                          <div className="poll-vote-list">
+                            {(m.shareData?.options || []).map((opt, idx) => {
+                              const counts = Array.isArray(m.shareData?.voteCounts) ? m.shareData.voteCounts : [];
+                              const votes = Number(counts[idx] || 0);
+                              const total = Number(m.shareData?.totalVotes || 0);
+                              const pct = total > 0 ? Math.round((votes / total) * 100) : 0;
+                              const myVote = m.shareData?.votesByUser?.[profile.userId] === idx;
+                              return (
+                                <button
+                                  key={`${opt}-${idx}`}
+                                  type="button"
+                                  className={`poll-vote-option ${myVote ? 'is-voted' : ''}`}
+                                  onClick={() => void votePollOption(m, idx)}
+                                >
+                                  <span className="poll-vote-text">{opt}</span>
+                                  <span className="poll-vote-meta">{votes} · {pct}%</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <p className="share-meta">Total votes: {Number(m.shareData?.totalVotes || 0)}</p>
+                        </>
+                      )}
+                      {m.shareType === 'event' && (
+                        <>
+                          <p className="share-title">Event</p>
+                          <p className="share-line">{m.shareData?.title || 'Event'}</p>
+                          <p className="share-meta">{m.shareData?.whenTs ? new Date(m.shareData.whenTs).toLocaleString() : (m.shareData?.whenRaw || '')}</p>
+                          <p className="share-meta">{m.shareData?.location || 'Location not set'}</p>
+                          {m.shareData?.note && <p className="share-note">{m.shareData.note}</p>}
+                          <button type="button" className="share-reminder-btn" onClick={() => void addEventReminder(m)}>Add reminder</button>
+                        </>
+                      )}
+                    </div>
                   ) : (
                     <div className="common-message-content"><audio controls src={m.voiceUrl} /></div>
                   )}
@@ -2861,6 +3283,22 @@ export default function App() {
                   <button type="button" className="attachment-menu-item" onClick={triggerQuickCamera}>
                     <span className="icon icon-camera" aria-label="camera" />
                     <span>Take Photo</span>
+                  </button>
+                  <button type="button" className="attachment-menu-item" onClick={openBahrainLocationDialog}>
+                    <span className="attachment-menu-emoji" aria-hidden="true">📍</span>
+                    <span>Share Bahrain Location</span>
+                  </button>
+                  <button type="button" className="attachment-menu-item" onClick={triggerDocumentUpload}>
+                    <span className="attachment-menu-emoji" aria-hidden="true">📄</span>
+                    <span>Share Document</span>
+                  </button>
+                  <button type="button" className="attachment-menu-item" onClick={openPollDialog}>
+                    <span className="attachment-menu-emoji" aria-hidden="true">📊</span>
+                    <span>Create Poll</span>
+                  </button>
+                  <button type="button" className="attachment-menu-item" onClick={openEventDialog}>
+                    <span className="attachment-menu-emoji" aria-hidden="true">📅</span>
+                    <span>Create Event</span>
                   </button>
                 </div>
               )}
@@ -3186,7 +3624,7 @@ export default function App() {
                         onChange={(e) => setNewPinConfirmDraft(e.target.value.replace(/\D/g, '').slice(0, 6))}
                         placeholder="Confirm PIN"
                       />
-                      <p className="wa-profile-hint">Use 4 digits or 6 digits.</p>
+                      <p className="wa-profile-hint">Use exactly 6 digits.</p>
                       <button className="common-button wa-profile-save" onClick={() => void saveProfilePin()}>Update PIN</button>
                     </article>
                   </>
@@ -3229,9 +3667,30 @@ export default function App() {
       {authScreenOpen && (
         <section className="auth-page">
           <div className={`auth-shell ${authMode === 'signup' ? 'is-signup' : 'is-login'}`}>
+            <div className="auth-mobile-toggle" role="tablist" aria-label="Authentication mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={authMode !== 'signup'}
+                className={`auth-mobile-tab ${authMode !== 'signup' ? 'is-active' : ''}`}
+                onClick={() => setAuthMode('login')}
+              >
+                SIGN IN
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={authMode === 'signup'}
+                className={`auth-mobile-tab ${authMode === 'signup' ? 'is-active' : ''}`}
+                onClick={openNewUserSetup}
+              >
+                SIGN UP
+              </button>
+            </div>
+
             <section className="auth-panel auth-panel-signup" aria-label="Create account panel">
               <h2 className="auth-title">Create Account</h2>
-              <p className="auth-subtitle">Create your LAN profile and set a 4-digit or 6-digit PIN.</p>
+              <p className="auth-subtitle">Create your LAN profile and set a 6-digit PIN.</p>
               <label className="auth-label">
                 Username
                 <input
@@ -3239,7 +3698,7 @@ export default function App() {
                   value={onboardingName}
                   maxLength={30}
                   onChange={(e) => setOnboardingName(e.target.value)}
-                  placeholder="Your name"
+                  placeholder="Enter your username (letters/numbers)"
                 />
               </label>
               <label className="auth-label">
@@ -3249,27 +3708,27 @@ export default function App() {
                   value={onboardingAbout}
                   maxLength={120}
                   onChange={(e) => setOnboardingAbout(e.target.value)}
-                  placeholder="Short status"
+                  placeholder="Write a short status about you"
                 />
               </label>
               <label className="auth-label">
                 Create PIN
                 <button
                   type="button"
-                  className={`auth-pin-display ${signupPinField === 'create' ? 'is-active' : ''}`}
+                  className={`auth-pin-display ${signupPinField === 'create' ? 'is-active' : ''} ${signupPinMasked ? '' : 'is-empty'}`}
                   onClick={() => setSignupPinField('create')}
                 >
-                  {signupPinMasked || '•••• or ••••••'}
+                  {signupPinMasked || 'Enter 6-digit PIN'}
                 </button>
               </label>
               <label className="auth-label">
                 Confirm PIN
                 <button
                   type="button"
-                  className={`auth-pin-display ${signupPinField === 'confirm' ? 'is-active' : ''}`}
+                  className={`auth-pin-display ${signupPinField === 'confirm' ? 'is-active' : ''} ${signupPinConfirmMasked ? '' : 'is-empty'}`}
                   onClick={() => setSignupPinField('confirm')}
                 >
-                  {signupPinConfirmMasked || '•••• or ••••••'}
+                  {signupPinConfirmMasked || 'Re-enter same 6-digit PIN'}
                 </button>
               </label>
               <PinPad
@@ -3282,10 +3741,11 @@ export default function App() {
 
             <section className="auth-panel auth-panel-login" aria-label="Sign in panel">
               <h2 className="auth-title">Sign In</h2>
-              <p className="auth-subtitle">Use your 4-digit or 6-digit PIN.</p>
+              <p className="auth-subtitle">Use your 6-digit PIN.</p>
               <label className="auth-label">
                 PIN
-                <div className="auth-pin-display">{loginPinMasked || '•••• or ••••••'}</div>
+                <div className={`auth-pin-display ${loginPinMasked ? '' : 'is-empty'}`}>{loginPinMasked || 'Enter your 6-digit PIN'}</div>
+                <p className="auth-field-hint">Use the same 6-digit PIN you created during Sign Up.</p>
               </label>
               <PinPad
                 onDigit={handleLoginPinDigit}
@@ -3293,7 +3753,6 @@ export default function App() {
                 onClear={() => setLoginPin('')}
               />
               <button className="auth-submit" type="button" onClick={() => void submitOldUserLogin()}>SIGN IN</button>
-              <button className="auth-secondary" type="button" onClick={openNewUserSetup}>SIGN UP</button>
             </section>
 
             <aside className="auth-switch">
@@ -3379,6 +3838,109 @@ export default function App() {
         </div>
       )}
 
+      {pollDialogOpen && (
+        <div className="share-dialog-overlay" onClick={() => setPollDialogOpen(false)}>
+          <div className="share-dialog" onClick={(e) => e.stopPropagation()}>
+            <h4 className="share-dialog-title">Create Poll</h4>
+            <div className="share-dialog-form">
+              <label className="form-label">Poll question:</label>
+              <input
+                type="text"
+                value={pollQuestion}
+                onChange={(e) => setPollQuestion(e.target.value)}
+                placeholder="What do you want to ask?"
+                className="form-input"
+              />
+              <label className="form-label">Options (comma separated):</label>
+              <input
+                type="text"
+                value={pollOptions}
+                onChange={(e) => setPollOptions(e.target.value)}
+                placeholder="Option 1, Option 2, ..."
+                className="form-input"
+              />
+            </div>
+            <div className="share-dialog-actions">
+              <button type="button" className="btn secondary" onClick={() => setPollDialogOpen(false)}>Cancel</button>
+              <button type="button" className="btn primary" onClick={submitPoll}>Create</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {eventDialogOpen && (
+        <div className="share-dialog-overlay" onClick={() => setEventDialogOpen(false)}>
+          <div className="share-dialog" onClick={(e) => e.stopPropagation()}>
+            <h4 className="share-dialog-title">Create Event</h4>
+            <div className="share-dialog-form">
+              <label className="form-label">Event title:</label>
+              <input
+                type="text"
+                value={eventTitle}
+                onChange={(e) => setEventTitle(e.target.value)}
+                placeholder="Event name"
+                className="form-input"
+              />
+              <label className="form-label">Date & Time:</label>
+              <input
+                type="datetime-local"
+                value={eventDateTime}
+                onChange={(e) => setEventDateTime(e.target.value)}
+                className="form-input"
+              />
+              <label className="form-label">Location:</label>
+              <input
+                type="text"
+                value={eventLocation}
+                onChange={(e) => setEventLocation(e.target.value)}
+                placeholder="Event location"
+                className="form-input"
+              />
+              <label className="form-label">Note (optional):</label>
+              <textarea
+                value={eventNote}
+                onChange={(e) => setEventNote(e.target.value)}
+                placeholder="Add any notes..."
+                className="form-textarea"
+                rows="3"
+              />
+            </div>
+            <div className="share-dialog-actions">
+              <button type="button" className="btn secondary" onClick={() => setEventDialogOpen(false)}>Cancel</button>
+              <button type="button" className="btn primary" onClick={submitEvent}>Create</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bahrainLocationDialogOpen && (
+        <div className="share-dialog-overlay" onClick={() => setBahrainLocationDialogOpen(false)}>
+          <div className="share-dialog" onClick={(e) => e.stopPropagation()}>
+            <h4 className="share-dialog-title">Select Location</h4>
+            <div className="share-dialog-form">
+              <label className="form-label">Choose a Bahrain offline location:</label>
+              <div className="location-list">
+                {BAHRAIN_OFFLINE_LOCATIONS.map((loc, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className={`location-item ${bahrainLocationSelected === String(idx + 1) ? 'selected' : ''}`}
+                    onClick={() => setBahrainLocationSelected(String(idx + 1))}
+                  >
+                    <span className="location-name">{loc.name}</span>
+                    <span className="location-coords">({loc.lat.toFixed(4)}, {loc.lng.toFixed(4)})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="share-dialog-actions">
+              <button type="button" className="btn secondary" onClick={() => setBahrainLocationDialogOpen(false)}>Cancel</button>
+              <button type="button" className="btn primary" onClick={submitBahrainLocation}>Share</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <input
         ref={profilePhotoInputRef}
         type="file"
@@ -3402,6 +3964,14 @@ export default function App() {
         capture="environment"
         className="hidden-file-input"
         onChange={onPhotoSelected}
+      />
+
+      <input
+        ref={documentInputRef}
+        type="file"
+        accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.ppt,.pptx,.json,.md,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        className="hidden-file-input"
+        onChange={onDocumentSelected}
       />
       <audio ref={remoteAudioRef} autoPlay hidden />
     </>

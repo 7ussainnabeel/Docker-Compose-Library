@@ -20,10 +20,11 @@ const FRONTEND_DIST = process.env.FRONTEND_DIST || path.join(__dirname, '..', '.
 const HTTP_BODY_LIMIT = process.env.HTTP_BODY_LIMIT || '1mb';
 const WS_MAX_PAYLOAD = Number(process.env.WS_MAX_PAYLOAD || 1048576);
 const RATE_WINDOW_MS = Number(process.env.RATE_WINDOW_MS || 60000);
-const RATE_MAX_REQUESTS = Number(process.env.RATE_MAX_REQUESTS || 240);
+const RATE_MAX_REQUESTS = Number(process.env.RATE_MAX_REQUESTS || 10000);
 const MAX_TEXT_LENGTH = Number(process.env.MAX_TEXT_LENGTH || 3000);
 const MAX_TEXT_CIPHER_LENGTH = Number(process.env.MAX_TEXT_CIPHER_LENGTH || MAX_TEXT_LENGTH * 120);
 const MAX_PHOTO_CIPHER_LENGTH = Number(process.env.MAX_PHOTO_CIPHER_LENGTH || 600000);
+const MAX_DOCUMENT_CIPHER_LENGTH = Number(process.env.MAX_DOCUMENT_CIPHER_LENGTH || 500000);
 const MAX_GROUP_MEMBERS = Number(process.env.MAX_GROUP_MEMBERS || 128);
 const MAX_PENDING_PER_USER = Number(process.env.MAX_PENDING_PER_USER || 5000);
 const TLS_ENABLED = String(process.env.TLS_ENABLED || 'false').toLowerCase() === 'true';
@@ -41,6 +42,15 @@ const { db, statements } = initDb(DB_FILE);
 const onlineUsers = new Map();
 const rateBucket = new Map();
 const groupCalls = new Map();
+
+function getOnlineEntry(userId) {
+  return onlineUsers.get(userId) || null;
+}
+
+function hasActiveSessions(userId) {
+  const entry = getOnlineEntry(userId);
+  return Boolean(entry && entry.sockets && entry.sockets.size > 0);
+}
 
 db.exec("UPDATE group_members SET role = 'member' WHERE role IS NULL OR role NOT IN ('admin', 'member')");
 db.exec(`
@@ -139,15 +149,19 @@ function makeUserList() {
 
 function broadcastPresence() {
   const payload = { action: 'presence-update', users: makeUserList() };
-  for (const { ws } of onlineUsers.values()) {
-    safeSend(ws, payload);
+  for (const entry of onlineUsers.values()) {
+    for (const socket of entry.sockets || []) {
+      safeSend(socket, payload);
+    }
   }
 }
 
 function enqueueOrSend(userId, event) {
   const recipient = onlineUsers.get(userId);
-  if (recipient) {
-    safeSend(recipient.ws, event);
+  if (recipient && recipient.sockets && recipient.sockets.size) {
+    for (const socket of recipient.sockets) {
+      safeSend(socket, event);
+    }
     return;
   }
 
@@ -283,16 +297,16 @@ function getTempSetting({ me, peerId, groupId }) {
   return null;
 }
 
-function isRateLimited(ip) {
+function isRateLimited(bucketKey) {
   const now = Date.now();
-  const bucket = rateBucket.get(ip) || { count: 0, resetAt: now + RATE_WINDOW_MS };
+  const bucket = rateBucket.get(bucketKey) || { count: 0, resetAt: now + RATE_WINDOW_MS };
   if (now > bucket.resetAt) {
     bucket.count = 0;
     bucket.resetAt = now + RATE_WINDOW_MS;
   }
 
   bucket.count += 1;
-  rateBucket.set(ip, bucket);
+  rateBucket.set(bucketKey, bucket);
   return bucket.count > RATE_MAX_REQUESTS;
 }
 
@@ -375,8 +389,11 @@ wss.on('connection', (ws) => {
     }
 
     const actionName = typeof data?.action === 'string' ? data.action : null;
-    const shouldRateLimit = actionName && actionName !== 'hello';
-    if (shouldRateLimit && isRateLimited(`ws:${ws.remoteIp}`)) {
+    // Exclude message actions and non-throttling actions from rate limiting
+    const messageActions = new Set(['direct-message', 'group-message', 'message-forward', 'message-edit', 'message-delete-for-me', 'message-delete-for-all', 'message-pin', 'message-unpin']);
+    const shouldRateLimit = actionName && actionName !== 'hello' && !messageActions.has(actionName);
+    const rateKey = ws.userId ? `ws:${ws.remoteIp}:${ws.userId}` : `ws:${ws.remoteIp}:anon`;
+    if (shouldRateLimit && isRateLimited(rateKey)) {
       safeSend(ws, { action: 'error', code: 'rate-limited' });
       audit('ws-rate-limited', ws.userId, ws.remoteIp, { action: actionName });
       return;
@@ -409,7 +426,14 @@ wss.on('connection', (ws) => {
         'call-end',
         'call-fallback',
         'group-call-status-request',
-        'group-call-join'
+        'group-call-join',
+        'message-forward',
+        'message-edit',
+        'message-delete-for-me',
+        'message-delete-for-all',
+        'message-pin',
+        'message-unpin',
+        'get-pinned-messages'
       ]);
 
       if (!allowedActions.has(action)) {
@@ -420,7 +444,7 @@ wss.on('connection', (ws) => {
 
       if (action === 'hello') {
         const requestedPin = typeof data.pin === 'string' ? data.pin.trim() : '';
-        if (requestedPin && !/^(\d{4}|\d{6})$/.test(requestedPin)) {
+        if (requestedPin && !/^\d{6}$/.test(requestedPin)) {
           safeSend(ws, { action: 'error', code: 'invalid-pin' });
           return;
         }
@@ -464,7 +488,12 @@ wss.on('connection', (ws) => {
         let avatar = requestedAvatar;
         let about = requestedAbout || 'Hey there! I am using LAN Messenger.';
 
-        if ((byPin || existingUser) && !profileUpdate) {
+        if (authMode === 'login' && byPin && !profileUpdate) {
+          // Login must always use the stored account profile for the supplied PIN.
+          username = byPin.username || username;
+          avatar = byPin.avatar ?? avatar;
+          about = byPin.about || about;
+        } else if ((byPin || existingUser) && !profileUpdate) {
           const source = byPin || existingUser;
           username = source.username || username;
           avatar = source.avatar ?? avatar;
@@ -472,7 +501,21 @@ wss.on('connection', (ws) => {
         }
 
         ws.userId = userId;
-        onlineUsers.set(userId, { ws, username, avatar, about });
+        const existingOnline = getOnlineEntry(userId);
+        if (existingOnline) {
+          existingOnline.username = username;
+          existingOnline.avatar = avatar;
+          existingOnline.about = about;
+          existingOnline.sockets.add(ws);
+          onlineUsers.set(userId, existingOnline);
+        } else {
+          onlineUsers.set(userId, {
+            sockets: new Set([ws]),
+            username,
+            avatar,
+            about,
+          });
+        }
 
         statements.upsertUser.run({
           id: userId,
@@ -483,15 +526,29 @@ wss.on('connection', (ws) => {
           last_seen: Date.now()
         });
 
+        const persistedUser = statements.getUserById.get(userId);
+        const persistedUsername = persistedUser?.username || username;
+        const persistedAvatar = persistedUser?.avatar ?? avatar;
+        const persistedAbout = persistedUser?.about || about;
+        const persistedPin = persistedUser?.pin || requestedPin || existingUser?.pin || byPin?.pin || null;
+
+        const onlineEntry = getOnlineEntry(userId);
+        if (onlineEntry) {
+          onlineEntry.username = persistedUsername;
+          onlineEntry.avatar = persistedAvatar;
+          onlineEntry.about = persistedAbout;
+          onlineUsers.set(userId, onlineEntry);
+        }
+
         safeSend(ws, {
           action: 'hello-ack',
           userId,
           profile: {
             userId,
-            username,
-            avatar,
-            about,
-            pinSet: Boolean(requestedPin || existingUser?.pin || byPin?.pin)
+            username: persistedUsername,
+            avatar: persistedAvatar,
+            about: persistedAbout,
+            pinSet: Boolean(persistedPin)
           },
           users: makeUserList(),
           groups: statements.groupsForUser.all(userId)
@@ -499,7 +556,7 @@ wss.on('connection', (ws) => {
 
         deliverPending(userId, ws);
         broadcastPresence();
-        audit('hello', userId, ws.remoteIp, { username, pinSet: Boolean(requestedPin), authMode });
+        audit('hello', userId, ws.remoteIp, { username: persistedUsername, pinSet: Boolean(persistedPin), authMode });
         return;
       }
 
@@ -714,7 +771,7 @@ wss.on('connection', (ws) => {
         const messages = hasBefore
           ? db.prepare(`
               SELECT * FROM messages
-              WHERE kind IN ('direct-text', 'direct-photo', 'voice-note')
+              WHERE kind IN ('direct-text', 'direct-photo', 'direct-document', 'voice-note')
               AND (
                 (from_user = @me AND to_user = @peer) OR
                 (from_user = @peer AND to_user = @me)
@@ -725,7 +782,7 @@ wss.on('connection', (ws) => {
             `).all({ me: ws.userId, peer: data.peerId, before, limit })
           : db.prepare(`
               SELECT * FROM messages
-              WHERE kind IN ('direct-text', 'direct-photo', 'voice-note')
+              WHERE kind IN ('direct-text', 'direct-photo', 'direct-document', 'voice-note')
               AND (
                 (from_user = @me AND to_user = @peer) OR
                 (from_user = @peer AND to_user = @me)
@@ -749,7 +806,7 @@ wss.on('connection', (ws) => {
         const messages = hasBefore
           ? db.prepare(`
               SELECT * FROM messages
-              WHERE kind IN ('group-text', 'group-photo', 'voice-note')
+              WHERE kind IN ('group-text', 'group-photo', 'group-document', 'voice-note')
               AND group_id = @groupId
               AND created_at < @before
               ORDER BY created_at DESC
@@ -757,7 +814,7 @@ wss.on('connection', (ws) => {
             `).all({ groupId: data.groupId, before, limit })
           : db.prepare(`
               SELECT * FROM messages
-              WHERE kind IN ('group-text', 'group-photo', 'voice-note')
+              WHERE kind IN ('group-text', 'group-photo', 'group-document', 'voice-note')
               AND group_id = @groupId
               ORDER BY created_at DESC
               LIMIT @limit
@@ -943,8 +1000,17 @@ wss.on('connection', (ws) => {
           return;
         }
 
-        const contentType = data.contentType === 'photo' ? 'photo' : 'text';
-        const maxCipherLength = contentType === 'photo' ? MAX_PHOTO_CIPHER_LENGTH : MAX_TEXT_CIPHER_LENGTH;
+        let contentType = 'text';
+        let maxCipherLength = MAX_TEXT_CIPHER_LENGTH;
+        
+        if (data.contentType === 'photo') {
+          contentType = 'photo';
+          maxCipherLength = MAX_PHOTO_CIPHER_LENGTH;
+        } else if (data.contentType === 'document') {
+          contentType = 'document';
+          maxCipherLength = MAX_DOCUMENT_CIPHER_LENGTH;
+        }
+        
         if ((data.payload.cipher || '').length > maxCipherLength) {
           safeSend(ws, { action: 'error', code: 'message-too-large' });
           return;
@@ -964,9 +1030,13 @@ wss.on('connection', (ws) => {
           createdAt: data.createdAt || Date.now()
         };
 
+        let messageKind = 'direct-text';
+        if (contentType === 'photo') messageKind = 'direct-photo';
+        else if (contentType === 'document') messageKind = 'direct-document';
+        
         statements.insertMessage.run({
           id: event.id,
-          kind: contentType === 'photo' ? 'direct-photo' : 'direct-text',
+          kind: messageKind,
           from_user: event.from,
           to_user: event.to,
           group_id: null,
@@ -1017,8 +1087,17 @@ wss.on('connection', (ws) => {
           return;
         }
 
-        const contentType = data.contentType === 'photo' ? 'photo' : 'text';
-        const maxCipherLength = contentType === 'photo' ? MAX_PHOTO_CIPHER_LENGTH : MAX_TEXT_CIPHER_LENGTH;
+        let contentType = 'text';
+        let maxCipherLength = MAX_TEXT_CIPHER_LENGTH;
+        
+        if (data.contentType === 'photo') {
+          contentType = 'photo';
+          maxCipherLength = MAX_PHOTO_CIPHER_LENGTH;
+        } else if (data.contentType === 'document') {
+          contentType = 'document';
+          maxCipherLength = MAX_DOCUMENT_CIPHER_LENGTH;
+        }
+        
         if ((data.payload.cipher || '').length > maxCipherLength) {
           safeSend(ws, { action: 'error', code: 'message-too-large' });
           return;
@@ -1038,9 +1117,13 @@ wss.on('connection', (ws) => {
           createdAt: data.createdAt || Date.now()
         };
 
+        let messageKind = 'group-text';
+        if (contentType === 'photo') messageKind = 'group-photo';
+        else if (contentType === 'document') messageKind = 'group-document';
+        
         statements.insertMessage.run({
           id: event.id,
-          kind: contentType === 'photo' ? 'group-photo' : 'group-text',
+          kind: messageKind,
           from_user: event.from,
           to_user: null,
           group_id: event.groupId,
@@ -1212,6 +1295,10 @@ wss.on('connection', (ws) => {
           messageId: data.messageId
         };
 
+        // Send delete event to sender first
+        safeSend(ws, event);
+        
+        // Send delete event to other users
         if (msg.to_user) {
           enqueueOrSend(msg.to_user, event);
         } else if (msg.group_id) {
@@ -1219,7 +1306,6 @@ wss.on('connection', (ws) => {
           members.forEach((memberId) => enqueueOrSend(memberId, event));
         }
 
-        safeSend(ws, { action: 'message-delete-ack', messageId: data.messageId });
         audit('message-delete-for-all', ws.userId, ws.remoteIp, { messageId: data.messageId });
       } catch {
         safeSend(ws, { action: 'error', code: 'delete-failed' });
@@ -1542,21 +1628,30 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
-    removeUserFromAllGroupCalls(ws.userId);
-
     if (ws.userId) {
-      const persisted = statements.getUserById.get(ws.userId);
-      statements.upsertUser.run({
-        id: ws.userId,
-        username: onlineUsers.get(ws.userId)?.username || 'Anonymous',
-        avatar: onlineUsers.get(ws.userId)?.avatar || null,
-        about: onlineUsers.get(ws.userId)?.about || persisted?.about || 'Hey there! I am using LAN Messenger.',
-        pin: persisted?.pin || null,
-        last_seen: Date.now()
-      });
+      const entry = getOnlineEntry(ws.userId);
+      if (entry?.sockets) {
+        entry.sockets.delete(ws);
+        if (entry.sockets.size === 0) {
+          removeUserFromAllGroupCalls(ws.userId);
+
+          const persisted = statements.getUserById.get(ws.userId);
+          statements.upsertUser.run({
+            id: ws.userId,
+            username: entry.username || persisted?.username || 'Anonymous',
+            avatar: entry.avatar || persisted?.avatar || null,
+            about: entry.about || persisted?.about || 'Hey there! I am using LAN Messenger.',
+            pin: persisted?.pin || null,
+            last_seen: Date.now()
+          });
+
+          onlineUsers.delete(ws.userId);
+        } else {
+          onlineUsers.set(ws.userId, entry);
+        }
+      }
     }
 
-    onlineUsers.delete(ws.userId);
     broadcastPresence();
     audit('ws-closed', ws.userId, ws.remoteIp, {});
   });
