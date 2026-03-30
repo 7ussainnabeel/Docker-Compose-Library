@@ -2706,9 +2706,17 @@ export default function App() {
 
           {!active && (
             <section className="chat-empty-cover" aria-live="polite">
-              <div className="chat-empty-card">
-                <h3 className="chat-empty-title">Choose a chat</h3>
-                <p className="chat-empty-copy">Select a conversation from the chat list to start messaging.</p>
+              <div className="chat-empty-main">
+                <div className="chat-empty-hero" aria-hidden="true">
+                  <span className="chat-empty-hero-ring" />
+                  <span className="chat-empty-hero-dot" />
+                </div>
+                <h3 className="chat-empty-title">LAN Messenger Web</h3>
+                <p className="chat-empty-copy">Choose a chat from the left to start messaging and sharing media.</p>
+              </div>
+              <div className="chat-empty-secure-bar" role="note">
+                <span className="chat-empty-lock" aria-hidden="true" />
+                End-to-end encrypted between devices on this network
               </div>
             </section>
           )}
